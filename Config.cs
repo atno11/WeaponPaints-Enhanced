@@ -94,9 +94,6 @@ namespace WeaponPaints
 		[JsonPropertyName("CmdRefreshCooldownSeconds")]
 		public int CmdRefreshCooldownSeconds { get; set; } = 3;
 
-		[JsonPropertyName("Website")]
-		public string Website { get; set; } = "example.com/skins";
-
 		[JsonPropertyName("Additional")]
 		public Additional Additional { get; set; } = new();
 		

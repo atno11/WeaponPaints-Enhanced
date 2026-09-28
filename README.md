@@ -189,8 +189,8 @@ The database credentials are configured in
 ### Phase 1 — Standalone MVP
 
 - [ ] Validate existing plugin functionality.
-- [ ] Remove the bundled PHP website.
-- [ ] Remove or disable website-only functionality.
+- [x] Remove the bundled PHP website.
+- [x] Remove or disable website-only functionality.
 - [ ] Verify MySQL persistence and player synchronization.
 - [ ] Test in-game commands and cosmetic customization.
 - [ ] Publish a validated initial release.
