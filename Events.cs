@@ -11,14 +11,14 @@ namespace WeaponPaints
 	public partial class WeaponPaints
 	{
 		private bool _mvpPlayed;
-		
+
 		[GameEventHandler]
 		public HookResult OnClientFullConnect(EventPlayerConnectFull @event, GameEventInfo info)
-     	{
+		{
 			CCSPlayerController? player = @event.Userid;
 
-			if (player is null || !player.IsValid || player.IsBot ||
-				WeaponSync == null || Database == null) return HookResult.Continue;
+			if (player is null || !player.IsValid || player.IsBot || WeaponSync == null || Database == null)
+				return HookResult.Continue;
 
 			var playerInfo = new PlayerInfo
 			{
@@ -27,7 +27,7 @@ namespace WeaponPaints
 				Index = (int)player.Index,
 				SteamId = player.SteamID.ToString(),
 				Name = player.PlayerName,
-				IpAddress = player.IpAddress?.Split(":")[0]
+				IpAddress = player.IpAddress?.Split(":")[0],
 			};
 
 			try
@@ -56,10 +56,8 @@ namespace WeaponPaints
 				}
 				*/
 			}
-			catch
-			{
-			}
-			
+			catch { }
+
 			Players.Add(player);
 
 			return HookResult.Continue;
@@ -70,7 +68,8 @@ namespace WeaponPaints
 		{
 			CCSPlayerController? player = @event.Userid;
 
-			if (player is null || !player.IsValid || player.IsBot) return HookResult.Continue;
+			if (player is null || !player.IsValid || player.IsBot)
+				return HookResult.Continue;
 
 			var playerInfo = new PlayerInfo
 			{
@@ -79,10 +78,10 @@ namespace WeaponPaints
 				Index = (int)player.Index,
 				SteamId = player.SteamID.ToString(),
 				Name = player.PlayerName,
-				IpAddress = player.IpAddress?.Split(":")[0]
+				IpAddress = player.IpAddress?.Split(":")[0],
 			};
 
-			Task.Run(async () => 
+			Task.Run(async () =>
 			{
 				if (WeaponSync != null)
 					await WeaponSync.SyncStatTrakToDatabase(playerInfo);
@@ -113,7 +112,7 @@ namespace WeaponPaints
 			{
 				GPlayersPin.TryRemove(player.Slot, out _);
 			}
-			
+
 			_temporaryPlayerWeaponWear.TryRemove(player.Slot, out _);
 			CommandsCooldown.Remove(player.Slot);
 			Players.Remove(player);
@@ -123,8 +122,9 @@ namespace WeaponPaints
 
 		private void OnMapStart(string mapName)
 		{
-			if (Config.Additional is { KnifeEnabled: false, SkinEnabled: false, GloveEnabled: false }) return;
-			
+			if (Config.Additional is { KnifeEnabled: false, SkinEnabled: false, GloveEnabled: false })
+				return;
+
 			if (Database != null)
 				WeaponSync = new WeaponSynchronization(Database, Config);
 
@@ -167,26 +167,30 @@ namespace WeaponPaints
 			_mvpPlayed = false;
 			return HookResult.Continue;
 		}
-		
+
 		private HookResult OnRoundMvp(EventRoundMvp @event, GameEventInfo info)
 		{
 			if (_mvpPlayed)
 				return HookResult.Continue;
-			
+
 			var player = @event.Userid;
-			
+
 			if (player == null || !player.IsValid || player.IsBot)
 				return HookResult.Continue;
 
-			if (!(GPlayersMusic.TryGetValue(player.Slot, out var musicInfo)
-			      && musicInfo.TryGetValue(player.Team, out var musicId)
-			      && musicId != 0))
+			if (
+				!(
+					GPlayersMusic.TryGetValue(player.Slot, out var musicInfo)
+					&& musicInfo.TryGetValue(player.Team, out var musicId)
+					&& musicId != 0
+				)
+			)
 				return HookResult.Continue;
-					
+
 			@event.Musickitid = musicId;
 			@event.Nomusic = 0;
 			info.DontBroadcast = true;
-			
+
 			var newEvent = new EventRoundMvp(true)
 			{
 				Userid = player,
@@ -195,7 +199,7 @@ namespace WeaponPaints
 			};
 
 			_mvpPlayed = true;
-			
+
 			newEvent.FireEvent(false);
 			return HookResult.Continue;
 		}
@@ -229,7 +233,8 @@ namespace WeaponPaints
 				Server.NextWorldUpdate(() =>
 				{
 					var weapon = new CBasePlayerWeapon(entity.Handle);
-					if (!weapon.IsValid) return;
+					if (!weapon.IsValid)
+						return;
 
 					try
 					{
@@ -250,24 +255,27 @@ namespace WeaponPaints
 						else
 						{
 							CCSWeaponBaseGun gun = weapon.As<CCSWeaponBaseGun>();
-							player = Utilities.GetPlayerFromIndex((int)weapon.OwnerEntity.Index) ?? Utilities.GetPlayerFromIndex((int)gun.OwnerEntity.Value!.Index);
+							player =
+								Utilities.GetPlayerFromIndex((int)weapon.OwnerEntity.Index)
+								?? Utilities.GetPlayerFromIndex((int)gun.OwnerEntity.Value!.Index);
 						}
 
-						if (string.IsNullOrEmpty(player?.PlayerName)) return;
-						if (!Utility.IsPlayerValid(player)) return;
-						
+						if (string.IsNullOrEmpty(player?.PlayerName))
+							return;
+						if (!Utility.IsPlayerValid(player))
+							return;
+
 						GivePlayerWeaponSkin(player, weapon);
 					}
-					catch (Exception)
-					{
-					}
+					catch (Exception) { }
 				});
 			}
 		}
 
 		private void OnTick()
 		{
-			if (!Config.Additional.ShowSkinImage) return;
+			if (!Config.Additional.ShowSkinImage)
+				return;
 
 			foreach (var player in Players)
 			{
@@ -277,25 +285,27 @@ namespace WeaponPaints
 				}
 			}
 		}
-		
+
 		[GameEventHandler]
 		public HookResult OnItemPickup(EventItemPickup @event, GameEventInfo _)
 		{
 			// if (!IsWindows) return HookResult.Continue;
 			var player = @event.Userid;
-			if (player == null || !player.IsValid || player.IsBot) return HookResult.Continue;
-			if (!@event.Item.Contains("knife")) return HookResult.Continue;
-		
+			if (player == null || !player.IsValid || player.IsBot)
+				return HookResult.Continue;
+			if (!@event.Item.Contains("knife"))
+				return HookResult.Continue;
+
 			var weaponDefIndex = (int)@event.Defindex;
-				
+
 			if (!HasChangedKnife(player, out var _) || !HasChangedPaint(player, weaponDefIndex, out var _))
 				return HookResult.Continue;
-			
+
 			if (player is { Connected: PlayerConnectedState.Connected, PawnIsAlive: true, PlayerPawn.IsValid: true })
 			{
 				GiveOnItemPickup(player);
 			}
-		
+
 			return HookResult.Continue;
 		}
 
@@ -306,28 +316,46 @@ namespace WeaponPaints
 
 			if (player is null || !player.IsValid)
 				return HookResult.Continue;
-			
+
 			if (victim == null || !victim.IsValid || victim == player)
 				return HookResult.Continue;
-			
+
 			CBasePlayerWeapon? weapon = player.PlayerPawn.Value?.WeaponServices?.ActiveWeapon.Value;
 
-			if (weapon == null) return HookResult.Continue;
+			if (weapon == null)
+				return HookResult.Continue;
 
 			int weaponDefIndex = weapon.AttributeManager.Item.ItemDefinitionIndex;
 
 			if (!HasChangedPaint(player, weaponDefIndex, out var weaponInfo) || weaponInfo == null)
 				return HookResult.Continue;
-				
-			if (!weaponInfo.StatTrak) return HookResult.Continue;
-			
+
+			if (!weaponInfo.StatTrak)
+				return HookResult.Continue;
+
 			weaponInfo.StatTrakCount += 1;
-				
-			CAttributeListSetOrAddAttributeValueByName.Invoke(weapon.AttributeManager.Item.NetworkedDynamicAttributes.Handle, "kill eater", ViewAsFloat((uint)weaponInfo.StatTrakCount));
-			CAttributeListSetOrAddAttributeValueByName.Invoke(weapon.AttributeManager.Item.NetworkedDynamicAttributes.Handle, "kill eater score type", 0);
-				
-			CAttributeListSetOrAddAttributeValueByName.Invoke(weapon.AttributeManager.Item.AttributeList.Handle, "kill eater", ViewAsFloat((uint)weaponInfo.StatTrakCount));
-			CAttributeListSetOrAddAttributeValueByName.Invoke(weapon.AttributeManager.Item.AttributeList.Handle, "kill eater score type", 0);
+
+			CAttributeListSetOrAddAttributeValueByName.Invoke(
+				weapon.AttributeManager.Item.NetworkedDynamicAttributes.Handle,
+				"kill eater",
+				ViewAsFloat((uint)weaponInfo.StatTrakCount)
+			);
+			CAttributeListSetOrAddAttributeValueByName.Invoke(
+				weapon.AttributeManager.Item.NetworkedDynamicAttributes.Handle,
+				"kill eater score type",
+				0
+			);
+
+			CAttributeListSetOrAddAttributeValueByName.Invoke(
+				weapon.AttributeManager.Item.AttributeList.Handle,
+				"kill eater",
+				ViewAsFloat((uint)weaponInfo.StatTrakCount)
+			);
+			CAttributeListSetOrAddAttributeValueByName.Invoke(
+				weapon.AttributeManager.Item.AttributeList.Handle,
+				"kill eater score type",
+				0
+			);
 
 			return HookResult.Continue;
 		}

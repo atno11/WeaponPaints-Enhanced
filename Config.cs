@@ -1,5 +1,5 @@
-using CounterStrikeSharp.API.Core;
 using System.Text.Json.Serialization;
+using CounterStrikeSharp.API.Core;
 
 namespace WeaponPaints
 {
@@ -34,7 +34,7 @@ namespace WeaponPaints
 
 		[JsonPropertyName("CommandMusic")]
 		public List<string> CommandMusic { get; set; } = ["music"];
-		
+
 		[JsonPropertyName("CommandPin")]
 		public List<string> CommandPin { get; set; } = ["pin", "pins", "coin", "coins"];
 
@@ -43,7 +43,7 @@ namespace WeaponPaints
 
 		[JsonPropertyName("CommandAgent")]
 		public List<string> CommandAgent { get; set; } = ["agents"];
-		
+
 		[JsonPropertyName("CommandStattrak")]
 		public List<string> CommandStattrak { get; set; } = ["stattrak", "st"];
 
@@ -71,9 +71,10 @@ namespace WeaponPaints
 
 	public class WeaponPaintsConfig : BasePluginConfig
 	{
-        [JsonPropertyName("ConfigVersion")] public override int Version { get; set; } = 10;
+		[JsonPropertyName("ConfigVersion")]
+		public override int Version { get; set; } = 10;
 
-        [JsonPropertyName("SkinsLanguage")]
+		[JsonPropertyName("SkinsLanguage")]
 		public string SkinsLanguage { get; set; } = "en";
 
 		[JsonPropertyName("DatabaseHost")]
@@ -96,7 +97,7 @@ namespace WeaponPaints
 
 		[JsonPropertyName("Additional")]
 		public Additional Additional { get; set; } = new();
-		
+
 		[JsonPropertyName("MenuType")]
 		public string MenuType { get; set; } = "selectable";
 	}

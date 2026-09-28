@@ -7,98 +7,103 @@ namespace WeaponPaints;
 // Thanks cssharp-fixes
 public static class Patch
 {
-    private static IntPtr GetAddress(string modulePath, string signature)
-    {
-        // Returns address if found, otherwise a C++ nullptr which is a IntPtr.Zero in C#
-        var address = NativeAPI.FindSignature(modulePath, signature);
-        
-        return address;
-    }
+	private static IntPtr GetAddress(string modulePath, string signature)
+	{
+		// Returns address if found, otherwise a C++ nullptr which is a IntPtr.Zero in C#
+		var address = NativeAPI.FindSignature(modulePath, signature);
 
-    public static void PerformPatch(string signature, string patch)
-    {
-        IntPtr address = GetAddress(Addresses.ServerPath, signature);
-        if(address == IntPtr.Zero)
-        {
-            return;
-        }
-        
-        WriteBytesToAddress(address, HexToByte(patch));
-    }
+		return address;
+	}
 
-    private static void WriteBytesToAddress(IntPtr address, List<byte> bytes)
-    {
-        int patchSize = bytes.Count;
-        if(patchSize == 0) throw new ArgumentException("Patch bytes list cannot be empty.");
-        
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            MemoryLinux.PatchBytesAtAddress(address, bytes.ToArray(), patchSize);
-        }
-        else
-        {
-            MemoryWindows.PatchBytesAtAddress(address, bytes.ToArray(), patchSize);
-        }
-    }
+	public static void PerformPatch(string signature, string patch)
+	{
+		IntPtr address = GetAddress(Addresses.ServerPath, signature);
+		if (address == IntPtr.Zero)
+		{
+			return;
+		}
 
-    private static List<byte> HexToByte(string src)
-    {
-        if (string.IsNullOrEmpty(src))
-        {
-            return new List<byte>();
-        }
+		WriteBytesToAddress(address, HexToByte(patch));
+	}
 
-        byte HexCharToByte(char c)
-        {
-            if (c is >= '0' and <= '9') return (byte)(c - '0');
-            if (c is >= 'A' and <= 'F') return (byte)(c - 'A' + 10);
-            if (c is >= 'a' and <= 'f') return (byte)(c - 'a' + 10);
-            return 0xFF; // Invalid hex character
-        }
+	private static void WriteBytesToAddress(IntPtr address, List<byte> bytes)
+	{
+		int patchSize = bytes.Count;
+		if (patchSize == 0)
+			throw new ArgumentException("Patch bytes list cannot be empty.");
 
-        List<byte> result = new List<byte>();
-        bool isCodeStyle = src[0] == '\\';
-        string pattern = isCodeStyle ? "\\x" : " ";
-        string wildcard = isCodeStyle ? "2A" : "?";
-        int pos = 0;
+		if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+		{
+			MemoryLinux.PatchBytesAtAddress(address, bytes.ToArray(), patchSize);
+		}
+		else
+		{
+			MemoryWindows.PatchBytesAtAddress(address, bytes.ToArray(), patchSize);
+		}
+	}
 
-        while (pos < src.Length)
-        {
-            int found = src.IndexOf(pattern, pos);
-            if (found == -1)
-            {
-                found = src.Length;
-            }
+	private static List<byte> HexToByte(string src)
+	{
+		if (string.IsNullOrEmpty(src))
+		{
+			return new List<byte>();
+		}
 
-            string str = src.Substring(pos, found - pos);
-            pos = found + pattern.Length;
+		byte HexCharToByte(char c)
+		{
+			if (c is >= '0' and <= '9')
+				return (byte)(c - '0');
+			if (c is >= 'A' and <= 'F')
+				return (byte)(c - 'A' + 10);
+			if (c is >= 'a' and <= 'f')
+				return (byte)(c - 'a' + 10);
+			return 0xFF; // Invalid hex character
+		}
 
-            if (string.IsNullOrEmpty(str)) continue;
+		List<byte> result = new List<byte>();
+		bool isCodeStyle = src[0] == '\\';
+		string pattern = isCodeStyle ? "\\x" : " ";
+		string wildcard = isCodeStyle ? "2A" : "?";
+		int pos = 0;
 
-            string byteStr = str;
+		while (pos < src.Length)
+		{
+			int found = src.IndexOf(pattern, pos);
+			if (found == -1)
+			{
+				found = src.Length;
+			}
 
-            if (byteStr.Substring(0, wildcard.Length) == wildcard)
-            {
-                result.Add(0xFF); // Representing wildcard as 0xFF
-                continue;
-            }
+			string str = src.Substring(pos, found - pos);
+			pos = found + pattern.Length;
 
-            if (byteStr.Length < 2)
-            {
-                return new List<byte>(); // Invalid byte length
-            }
+			if (string.IsNullOrEmpty(str))
+				continue;
 
-            byte high = HexCharToByte(byteStr[0]);
-            byte low = HexCharToByte(byteStr[1]);
+			string byteStr = str;
 
-            if (high == 0xFF || low == 0xFF)
-            {
-                return new List<byte>(); // Invalid hex character
-            }
+			if (byteStr.Substring(0, wildcard.Length) == wildcard)
+			{
+				result.Add(0xFF); // Representing wildcard as 0xFF
+				continue;
+			}
 
-            result.Add((byte)((high << 4) | low));
-        }
+			if (byteStr.Length < 2)
+			{
+				return new List<byte>(); // Invalid byte length
+			}
 
-        return result;
-    }
+			byte high = HexCharToByte(byteStr[0]);
+			byte low = HexCharToByte(byteStr[1]);
+
+			if (high == 0xFF || low == 0xFF)
+			{
+				return new List<byte>(); // Invalid hex character
+			}
+
+			result.Add((byte)((high << 4) | low));
+		}
+
+		return result;
+	}
 }
