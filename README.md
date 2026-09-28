@@ -1,108 +1,247 @@
-# CS2 Weapon Paints
+
+
+# WeaponPaints-Enhanced
+
+An independent, long-term fork of
+[cs2-WeaponPaints](https://github.com/Nereziel/cs2-WeaponPaints),
+focused on maintainability, stability and extensibility for
+Counter-Strike 2 servers.
+
+> **Project Status:** Early development. The initial release will
+> focus on the standalone CS2 plugin, without a required website
+> or external API.
+
+## About This Project
+
+WeaponPaints-Enhanced is an independent project based on the
+original cs2-WeaponPaints plugin created by Nereziel.
+
+Our goal is to build a maintainable foundation for long-term
+development while preserving compatibility with existing
+CounterStrikeSharp installations.
+
+The project will evolve independently, with gradual refactoring,
+bug fixes and new features.
+
+## Compatibility
+
+The plugin installation directory remains:
+
+`addons/counterstrikesharp/plugins/WeaponPaints`
+
+This path is intentionally preserved to maintain compatibility
+with existing server installations.
+
+Changes to configuration formats or other compatibility-sensitive
+behavior will be documented as development progresses.
+
+## Credits
+
+WeaponPaints-Enhanced is based on the original
+[cs2-WeaponPaints](https://github.com/Nereziel/cs2-WeaponPaints)
+project by Nereziel.
+
+All applicable original copyright notices and license
+requirements are retained.
+
+This is an independent fork and is not an official release
+of the original project.
+
+## Project Status
+
+**Current phase: MVP development**
+
+The initial release focuses on the CS2 plugin itself.
+
+Our priorities are:
+
+- Preserve and validate existing plugin functionality.
+- Remove the bundled PHP website dependency.
+- Fix critical bugs and improve reliability.
+- Maintain compatibility with CounterStrikeSharp.
+- Establish a foundation for future development.
+
+Existing functionality is being reviewed and tested.
+Features are not considered stable until validated.
 
 ## Description
-Unfinished, unoptimized and not fully functional ugly demo weapon paints plugin for **[CSSharp](https://docs.cssharp.dev/docs/guides/getting-started.html)**. 
 
-## Created [Discord server](https://discord.gg/d9CvaYPSFe) where you can discuss about plugin.
+WeaponPaints-Enhanced allows CS2 server operators to provide
+cosmetic customization through a CounterStrikeSharp plugin.
 
-### Consider to donate instead of buying from unknown sources.
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/E1E2G0P2O) or [![Donate on Steam](https://github.com/Nereziel/cs2-WeaponPaints/assets/32937653/a0d53822-4ca7-4caf-83b4-e1a9b5f8c94e)](https://steamcommunity.com/tradeoffer/new/?partner=41515647&token=gW2W-nXE)
+Player selections are persisted in a MySQL database and
+synchronized by the game server.
+
+The plugin is designed to operate independently of any
+website, frontend framework or external API.
+
+A dedicated API is planned for future releases, allowing
+developers to build their own frontend using their preferred
+languages and frameworks.
+
+## MVP Scope
+
+The first release focuses on the existing game-server
+functionality.
+
+Core priorities:
+
+- Weapon skin customization.
+- Knife selection and customization.
+- Paint, seed and wear configuration.
+- MySQL persistence.
+- Player data synchronization.
+- In-game commands and menus.
+- Configuration and installation without a website.
+
+Additional cosmetic features inherited from the original
+project will be reviewed and retained as compatibility permits.
+
+### Out of Scope
+
+The following are not part of the initial MVP:
+
+- Bundled PHP website.
+- Web-based Steam authentication.
+- Public REST API.
+- Official web frontend.
+- External account-management services.
+
+The initial release does not require PHP or a web server.
 
 ## Features
-- Changes only paint, seed and wear on weapons, knives, gloves and agents
-- MySQL based
-- Data syncs on player connect
-- Added command **`!wp`** to refresh skins ***(with cooldown in seconds can be configured)***
-- Added command **`!ws`** to show website
-- Added command **`!knife`** to show menu with knives
-- Added command **`!gloves`** to show menu with gloves
-- Added command **`!agents`** to show menu with agents
-- Added command **`!pins`** to show menu with pins
-- Added command **`!music`** to show menu with music
-- Translations support, submit a PR if you want to share your translation
 
-## ⚙️ Requirements
-**Ensure all the following dependencies are installed before proceeding**
+### Core Plugin
+
+- Weapon and knife customization.
+- Configurable skin properties.
+- Persistent MySQL storage.
+- Automatic synchronization when players connect.
+- Manual skin refresh with a configurable cooldown.
+- In-game customization menus.
+- Localization support inherited from the original project.
+
+### Additional Cosmetic Features
+
+The original plugin includes support for gloves, agents,
+pins and music kits.
+
+These features will be reviewed and tested as part of the
+fork's compatibility and stabilization work.
+
+### Future API
+
+A dedicated API is planned for a later development phase.
+
+The API will provide a secure integration layer between
+the plugin's data and external applications.
+
+Frontend developers will be free to choose their own
+technology, without being tied to PHP or any particular
+JavaScript framework.
+
+The API's implementation language and public contract
+have not yet been finalized.
+
+## Requirements
+
+The initial fork is based on the original plugin's
+requirements:
+
+- Counter-Strike 2 Dedicated Server.
 - [CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp)
-- [PlayerSettings](https://github.com/NickFox007/PlayerSettingsCS2) - Required by MenuManagerCS2
-- [AnyBaseLibCS2](https://github.com/NickFox007/AnyBaseLibCS2) - Required by PlayerSettings
-- [MenuManagerCS2](https://github.com/NickFox007/MenuManagerCS2)
-- MySQL database
+  with runtime support.
+- MySQL database.
+- [MenuManagerCS2](https://github.com/NickFox007/MenuManagerCS2).
+- [PlayerSettings](https://github.com/NickFox007/PlayerSettingsCS2).
+- [AnyBaseLibCS2](https://github.com/NickFox007/AnyBaseLibCS2).
 
-## CS2 Server
-- Have working CounterStrikeSharp (**with RUNTIME!**)
-- Download from Release and copy plugin to plugins
-- Run server with plugin, **it will generate config if installed correctly!**
-- Edit `addons/counterstrikesharp/configs/`**`plugins/WeaponPaints/WeaponPaints.json`** include database credentials
-- In `addons/counterstrikesharp/configs/`**`core.json`** set **FollowCS2ServerGuidelines** to **`false`**
-- Copy from plugins folder gamedata file **`weaponpaints.json`** to folder **`addons/counterstrikesharp/gamedata/`**
+Inherited dependencies will be reviewed as the project
+is refactored.
 
-## Plugin Configuration
-<details>
-  <summary>Click to expand</summary>
-<code><pre>{
-	"Version": 4, // Don't touch
-	"DatabaseHost": "", // MySQL host
-	"DatabasePort": 3306, // MySQL port
-	"DatabaseUser": "", // MySQL username
-	"DatabasePassword": "", // MySQL user password
-	"DatabaseName": "", // MySQL database name
-	"CmdRefreshCooldownSeconds": 60, // Cooldown time in refreshing skins (!wp command)
-	"Prefix": "[WeaponPaints]", // Prefix every chat message
-	"Website": "example.com/skins", // Website used in WebsiteMessageCommand (!ws command)
-"Messages": {
-	"WebsiteMessageCommand": "Visit {WEBSITE} where you can change skins.", // Information about website where player can change skins (!ws command) Set to empty to disable
-	"SynchronizeMessageCommand": "Type !wp to synchronize chosen skins.", // Information about skins refreshing (!ws command) Set to empty to disable
-	"KnifeMessageCommand": "Type !knife to open knife menu.", // Information about knife menu (!ws command) Set to empty to disable
-	"CooldownRefreshCommand": "You can\u0027t refresh weapon paints right now.", // Cooldown information (!wp command) Set to empty to disable
-	"SuccessRefreshCommand": "Refreshing weapon paints.", // Information about refreshing skins (!wp command) Set to empty to disable
-	"ChosenKnifeMenu": "You have chosen {KNIFE} as your knife.", // Information about choosen knife (!knife command) Set to empty to disable
-	"ChosenSkinMenu": "You have chosen {SKIN} as your skin.", // Information about choosen skin (!skins command) Set to empty to disable
-	"ChosenKnifeMenuKill": "To correctly apply skin for knife, you need to type !kill.", // Information about suicide after knife selection (!knife command) Set to empty to disable
-	"KnifeMenuTitle": "Knife Menu.",  // Menu title (!knife menu)
-	"WeaponMenuTitle": "Weapon Menu.", // Menu title (!skins menu)
-	"SkinMenuTitle": "Select skin for {WEAPON}" // Menu title (!skins menu, after weapon select)
-},
-"Additional": {
-	"KnifeEnabled": true, // Enable or disable knife feature
-	"SkinEnabled": true, // Enable or disable skin feature
-	"CommandWpEnabled": true, // Enable or disable refreshing command
-	"CommandKillEnabled": true, // Enable or disable kill command
-	"CommandKnife": "knife", // Name of knife menu command, u can change to for e.g, knives
-	"CommandSkin": "ws", // Name of skin information command, u can change to for e.g, skins
-	"CommandSkinSelection": "skins", // Name of skins menu command, u can change to for e.g, weapons
-	"CommandRefresh": "wp", // Name of skin refreshing command, u can change to for e.g, refreshskins
-	"CommandKill": "kill", // Name of kill command, u can change to for e.g, suicide
-	"GiveRandomKnife": false,  // Give random knife to players if they didn't choose
-	"GiveRandomSkins": false  // Give random skins to players if they didn't choose
-},
-</pre></code>
-</details>
-    
-## Web install
-- Requires PHP >= 7.4 with curl and pdo_mysql ***(Tested on php ver **`8.2.3`** and nginx webserver)***
-- **Before using website, make sure the plugin is correctly loaded in cs2 server!** Mysql tables are created by plugin not by website.
-- Copy website to web server ***(Folder `img` not needed)***
-- Get [Steam API Key](https://steamcommunity.com/dev/apikey)
-- Fill in database credentials and api key in `class/config.php`
-- Visit website and login via steam
+PHP, a web server and a Steam Web API key are not required
+for the standalone MVP.
 
-## Web Features
-- Basic website
-- Steam login/logout
-- Change knife, paint, seed and wear
+## Installation
 
-## Troubleshooting
-<details>
-**Skins are not changing:**
-Set FollowCSGOGuidelines to false in cssharp’s core.jcon config
+Installation instructions will be finalized after the
+initial Enhanced build is validated.
 
-**Database error table does not exists:**
-Plugin is not loaded or configured with mysql credentials. Tables are auto-created by plugin.
+The intended installation process is:
 
-</details>
+1. Install CounterStrikeSharp and the required dependencies.
+2. Build WeaponPaints-Enhanced or obtain an available release.
+3. Install the plugin in the existing `WeaponPaints` directory.
+4. Install the required gamedata file, if supplied.
+5. Start the server to generate the plugin configuration.
+6. Configure the MySQL connection.
+7. Restart the server and verify that the plugin loads.
 
-### Use this plugin at your own risk! Using this may lead to GSLT ban or something else Valve come with. [Valve Server guidelines](https://blog.counter-strike.net/index.php/server_guidelines/)
+The existing configuration directory is:
 
-## Preview
-![preview](https://github.com/Nereziel/cs2-WeaponPaints/blob/main/website/preview.png?raw=true)
+`addons/counterstrikesharp/configs/plugins/WeaponPaints/`
+
+The database credentials are configured in
+`WeaponPaints.json`.
+
+## Roadmap
+
+### Phase 1 — Standalone MVP
+
+- [ ] Validate existing plugin functionality.
+- [ ] Remove the bundled PHP website.
+- [ ] Remove or disable website-only functionality.
+- [ ] Verify MySQL persistence and player synchronization.
+- [ ] Test in-game commands and cosmetic customization.
+- [ ] Publish a validated initial release.
+
+### Phase 2 — Stabilization
+
+- [ ] Fix confirmed bugs.
+- [ ] Improve error handling and diagnostics.
+- [ ] Refactor the existing codebase.
+- [ ] Review inherited dependencies.
+- [ ] Improve installation and configuration documentation.
+
+### Phase 3 — API
+
+- [ ] Design a versioned API contract.
+- [ ] Implement secure access to player cosmetic data.
+- [ ] Support authentication and authorization.
+- [ ] Document endpoints for third-party developers.
+- [ ] Keep API integration optional for game servers.
+
+### Phase 4 — Extended Development
+
+- [ ] Expand cosmetic customization capabilities.
+- [ ] Improve extensibility and integration options.
+- [ ] Support community-driven improvements.
+
+The roadmap may change as the project evolves.
+
+## Community
+
+Bug reports, feature suggestions and contributions
+are welcome through GitHub Issues and Pull Requests.
+
+Please include relevant logs and reproduction steps
+when reporting a bug.
+
+## License
+
+WeaponPaints-Enhanced is a derivative of cs2-WeaponPaints
+and retains the applicable GNU General Public License
+version 3 requirements.
+
+See [LICENSE](LICENSE) for details.
+
+## Disclaimer
+
+Cosmetic modification plugins may conflict with
+Valve's game-server policies.
+
+Server operators are responsible for reviewing the
+applicable guidelines and understanding the risks,
+including potential Game Server Login Token restrictions.
+
+Use this software at your own risk.
