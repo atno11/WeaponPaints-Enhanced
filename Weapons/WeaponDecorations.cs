@@ -6,6 +6,8 @@ namespace WeaponPaints;
 
 public partial class WeaponPaints
 {
+	private readonly ConcurrentDictionary<int, ConcurrentDictionary<int, float>> _temporaryPlayerWeaponWear = new();
+
 	private void IncrementWearForWeaponWithStickers(CCSPlayerController player, CBasePlayerWeapon weapon)
 	{
 		int weaponDefIndex = weapon.AttributeManager.Item.ItemDefinitionIndex;
