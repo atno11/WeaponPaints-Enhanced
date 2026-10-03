@@ -51,5 +51,11 @@
   "wp_float_no_weapon": "Você precisa estar com uma arma equipada.",
   "wp_float_no_skin": "A arma equipada não possui uma skin personalizada.",
   "wp_float_failed": "Não foi possível atualizar o float da arma.",
-  "wp_float_updated": "Float atualizado para {0}."
+  "wp_float_updated": "Float atualizado para {0}.",
+  "wp_float_menu_title": "{0} | {1} | Float {2}",
+  "wp_float_exterior_factory_new": "Nova de Fábrica",
+  "wp_float_exterior_minimal_wear": "Pouco Usada",
+  "wp_float_exterior_field_tested": "Testada em Campo",
+  "wp_float_exterior_well_worn": "Bem Desgastada",
+  "wp_float_exterior_battle_scarred": "Veterana de Guerra"
 }

@@ -51,5 +51,11 @@
   "wp_float_no_weapon": "You need to have a weapon equipped.",
   "wp_float_no_skin": "The equipped weapon does not have a custom skin.",
   "wp_float_failed": "Unable to update the weapon float.",
-  "wp_float_updated": "Float updated to {0}."
+  "wp_float_updated": "Float updated to {0}.",
+  "wp_float_menu_title": "{0} | {1} | Float {2}",
+  "wp_float_exterior_factory_new": "Factory New",
+  "wp_float_exterior_minimal_wear": "Minimal Wear",
+  "wp_float_exterior_field_tested": "Field-Tested",
+  "wp_float_exterior_well_worn": "Well-Worn",
+  "wp_float_exterior_battle_scarred": "Battle-Scarred"
 }
