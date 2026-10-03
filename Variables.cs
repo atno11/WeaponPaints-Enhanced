@@ -15,11 +15,6 @@ public partial class WeaponPaints
 	private static readonly ConcurrentDictionary<int, Action<CCSPlayerController>> MenuBackActions = new();
 
 	public static IStringLocalizer? _localizer;
-	internal static List<JObject> SkinsList = [];
-	internal static List<JObject> PinsList = [];
-	internal static List<JObject> GlovesList = [];
-	internal static List<JObject> AgentsList = [];
-	internal static List<JObject> MusicList = [];
 	internal static WeaponSynchronization? WeaponSync;
 	private static bool _gBCommandsAllowed = true;
 	private readonly Dictionary<int, string> _playerWeaponImage = new();
