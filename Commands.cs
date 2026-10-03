@@ -515,7 +515,7 @@ public partial class WeaponPaints
 			};
 
 			if (_gBCommandsAllowed && (LifeState_t)player.LifeState == LifeState_t.LIFE_ALIVE)
-				RecreatePlayerKnife(player, selectionVersion);
+				ApplyPlayerKnifeRuntimeSelection(player, selectionVersion);
 
 			if (WeaponSync == null)
 				return;
@@ -923,7 +923,7 @@ public partial class WeaponPaints
 							var selectionVersion = KnifeSelectionVersions.AddOrUpdate(p.Slot, 1, (_, currentVersion) => currentVersion + 1);
 
 							if (_gBCommandsAllowed && (LifeState_t)p.LifeState == LifeState_t.LIFE_ALIVE)
-								RecreatePlayerKnife(p, selectionVersion);
+								ApplyPlayerKnifeRuntimeSelection(p, selectionVersion);
 
 							if (WeaponSync == null)
 								return;
