@@ -140,7 +140,7 @@ public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig
 
 			SetupMenuNavigationButtons();
 
-			RegisterCommands();
+			RegisterGeneralCommands();
 			RegisterCustomizationCommands();
 			RegisterStattrakCommands();
 			RegisterRefreshCommands();
