@@ -5,6 +5,10 @@ namespace WeaponPaints;
 
 public partial class WeaponPaints
 {
+	private const ushort PaintKitAttributeDefinitionIndex = 6;
+	private const ushort PaintSeedAttributeDefinitionIndex = 7;
+	private const ushort PaintWearAttributeDefinitionIndex = 8;
+
 	private static float? GetEconAttributeValue(CAttributeList attributeList, ushort attributeDefinitionIndex)
 	{
 		var attributes = attributeList.Attributes;
