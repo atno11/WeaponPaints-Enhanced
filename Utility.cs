@@ -13,14 +13,6 @@ namespace WeaponPaints
 	{
 		internal static WeaponPaintsConfig? Config { get; set; }
 
-		internal static bool IsPlayerValid(CCSPlayerController? player)
-		{
-			if (player is null || WeaponPaints.WeaponSync is null)
-				return false;
-
-			return player is { IsValid: true, IsBot: false, IsHLTV: false, UserId: not null };
-		}
-
 		internal static void Log(string message)
 		{
 			Console.BackgroundColor = ConsoleColor.DarkGray;
