@@ -117,8 +117,6 @@ public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig
 
 		_ = Utility.CheckDatabaseTables();
 		_localizer = Localizer;
-
-		Utility.Config = config;
 	}
 
 	public override void OnAllPluginsLoaded(bool hotReload)
