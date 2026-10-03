@@ -13,9 +13,6 @@ namespace WeaponPaints;
 public partial class WeaponPaints
 {
 	public static IStringLocalizer? _localizer;
-	internal static WeaponSynchronization? WeaponSync;
-
-	internal static Database? Database;
 
 	//we dont need anymore because we use AcceptInput
 	//private static readonly MemoryFunctionWithReturn<nint, string, int, int> SetBodygroupFunc = new(
