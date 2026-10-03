@@ -142,6 +142,7 @@ public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig
 
 			RegisterCommands();
 			RegisterCustomizationCommands();
+			RegisterStattrakCommands();
 		}
 		catch (Exception)
 		{
