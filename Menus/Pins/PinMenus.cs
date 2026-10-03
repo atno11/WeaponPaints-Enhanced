@@ -15,106 +15,20 @@ public partial class WeaponPaints
 		if (pinsSelectionMenu == null)
 			return;
 
-		var handlePinsSelection = (CCSPlayerController? player, ChatMenuOption option) =>
-		{
-			if (!Utility.IsPlayerValid(player) || player is null)
-				return;
-
-			var selectedPaintName = option.Text;
-
-			var playerPins = GPlayersPin.GetOrAdd(player.Slot, new ConcurrentDictionary<CsTeam, ushort>());
-
-			var teamsToCheck = player.TeamNum < 2 ? new[] { CsTeam.Terrorist, CsTeam.CounterTerrorist } : [player.Team];
-
-			var selectedPin = PinsList.FirstOrDefault(g => g.ContainsKey("name") && g["name"]?.ToString() == selectedPaintName);
-
-			if (selectedPin != null)
-			{
-				if (
-					!selectedPin.ContainsKey("id")
-					|| !selectedPin.ContainsKey("name")
-					|| !int.TryParse(selectedPin["id"]?.ToString(), out var paint)
-				)
-					return;
-
-				var image = selectedPin["image"]?.ToString() ?? "";
-
-				if (Config.Additional.ShowSkinImage)
-				{
-					_playerWeaponImage[player.Slot] = image;
-
-					AddTimer(2.0f, () => _playerWeaponImage.Remove(player.Slot), TimerFlags.STOP_ON_MAPCHANGE);
-				}
-
-				PlayerInfo playerInfo = new PlayerInfo
-				{
-					UserId = player.UserId,
-					Slot = player.Slot,
-					Index = (int)player.Index,
-					SteamId = player.SteamID.ToString(),
-					Name = player.PlayerName,
-					IpAddress = player.IpAddress?.Split(":")[0],
-				};
-
-				if (paint != 0)
-				{
-					foreach (var team in teamsToCheck)
-						playerPins[team] = (ushort)paint;
-				}
-				else
-				{
-					foreach (var team in teamsToCheck)
-						playerPins[team] = 0;
-				}
-
-				if (!string.IsNullOrEmpty(Localizer["wp_pins_menu_select"]))
-				{
-					player.Print(Localizer["wp_pins_menu_select", selectedPaintName]);
-				}
-
-				GivePlayerPin(player);
-
-				if (WeaponSync != null)
-				{
-					_ = Task.Run(async () => await WeaponSync.SyncPinToDatabase(playerInfo, (ushort)paint, teamsToCheck));
-				}
-			}
-			else
-			{
-				PlayerInfo playerInfo = new PlayerInfo
-				{
-					UserId = player.UserId,
-					Slot = player.Slot,
-					Index = (int)player.Index,
-					SteamId = player.SteamID.ToString(),
-					Name = player.PlayerName,
-					IpAddress = player.IpAddress?.Split(":")[0],
-				};
-
-				foreach (var team in teamsToCheck)
-					playerPins[team] = 0;
-
-				if (!string.IsNullOrEmpty(Localizer["wp_pins_menu_select"]))
-				{
-					player.Print(Localizer["wp_pins_menu_select", Localizer["None"]]);
-				}
-
-				GivePlayerPin(player);
-
-				if (WeaponSync != null)
-				{
-					_ = Task.Run(async () => await WeaponSync.SyncPinToDatabase(playerInfo, 0, teamsToCheck));
-				}
-			}
-		};
-
-		pinsSelectionMenu.AddMenuOption(Localizer["None"], handlePinsSelection);
-
 		foreach (
-			var paintName in PinsList.Select(musicObject => musicObject["name"]?.ToString() ?? "").Where(paintName => paintName.Length > 0)
+			var paintName in PinsList.Select(pinObject => pinObject["name"]?.ToString() ?? "").Where(paintName => paintName.Length > 0)
 		)
 		{
-			pinsSelectionMenu.AddMenuOption(paintName, handlePinsSelection);
+			pinsSelectionMenu.AddMenuOption(
+				paintName,
+				(player, option) =>
+				{
+					if (!Utility.IsPlayerValid(player))
+						return;
+
+					ApplyPinSelection(player, option);
+				}
+			);
 		}
 
 		_config.Additional.CommandPin.ForEach(c =>
