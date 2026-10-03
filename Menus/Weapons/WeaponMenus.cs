@@ -34,36 +34,7 @@ public partial class WeaponPaints
 		if (categorySelectionMenu == null)
 			return;
 
-		foreach (var category in WeaponCategoryOrder)
-		{
-			var weaponsInCategory = WeaponList
-				.Where(weapon =>
-					supportedWeaponClassnames.Contains(weapon.Key)
-					&& WeaponCategoryByClassname.TryGetValue(weapon.Key, out var weaponCategory)
-					&& weaponCategory == category
-				)
-				.ToList();
-
-			if (weaponsInCategory.Count == 0)
-				continue;
-
-			var categoryId = category;
-
-			categorySelectionMenu.AddMenuOption(
-				Localizer[$"wp_skin_category_{categoryId}"],
-				(player, _) =>
-				{
-					if (player == null || !Utility.IsPlayerValid(player))
-					{
-						return;
-					}
-
-					Action<CCSPlayerController> backToCategories = backPlayer => OpenWeaponPaintsMenu(categorySelectionMenu, backPlayer);
-
-					OpenWeaponMenu(player, weaponsInCategory, backToCategories, classNamesByWeapon, knifeSkinDefindexes);
-				}
-			);
-		}
+		BuildWeaponCategoryMenu(categorySelectionMenu, supportedWeaponClassnames, classNamesByWeapon, knifeSkinDefindexes);
 
 		_config.Additional.CommandSkinSelection.ForEach(c =>
 		{
