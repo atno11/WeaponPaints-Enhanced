@@ -126,7 +126,7 @@ public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig
 			MenuApi = MenuCapability.Get();
 
 			if (Config.Additional.KnifeEnabled)
-				SetupKnifeMenu();
+				RegisterKnifeCommands();
 			if (Config.Additional.SkinEnabled)
 				RegisterWeaponCommands();
 			if (Config.Additional.GloveEnabled)
