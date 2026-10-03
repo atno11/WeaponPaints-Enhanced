@@ -14,10 +14,8 @@ public partial class WeaponPaints
 {
 	public static IStringLocalizer? _localizer;
 	internal static WeaponSynchronization? WeaponSync;
-	private static bool _gBCommandsAllowed = true;
 	private readonly Dictionary<int, string> _playerWeaponImage = new();
 
-	private static readonly Dictionary<int, DateTime> CommandsCooldown = new();
 	internal static Database? Database;
 
 	private static readonly MemoryFunctionVoid<nint, string, float> CAttributeListSetOrAddAttributeValueByName = new(
