@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Entities;
 
@@ -8,6 +9,53 @@ public partial class WeaponPaints
 	private const ushort PaintKitAttributeDefinitionIndex = 6;
 	private const ushort PaintSeedAttributeDefinitionIndex = 7;
 	private const ushort PaintWearAttributeDefinitionIndex = 8;
+
+	private sealed record NativeEconItemSnapshot(
+		ushort ItemDefinitionIndex,
+		int EntityQuality,
+		uint EntityLevel,
+		ulong ItemID,
+		uint ItemIDHigh,
+		uint ItemIDLow,
+		uint AccountID,
+		uint InventoryPosition,
+		bool Initialized,
+		string CustomName,
+		string CustomNameOverride,
+		float? PaintKitAttribute,
+		float? PaintSeedAttribute,
+		float? PaintWearAttribute
+	);
+
+	private sealed record NativeWeaponSnapshot(
+		NativeEconItemSnapshot Item,
+		string Classname,
+		uint OriginalOwnerXuidLow,
+		uint OriginalOwnerXuidHigh,
+		int FallbackPaintKit,
+		int FallbackSeed,
+		float FallbackWear,
+		int FallbackStatTrak
+	);
+
+	private sealed record NativeMusicKitSnapshot(int MusicKitID, ushort InventoryMusicID);
+
+	private static readonly ConcurrentDictionary<
+		(int Slot, ulong SteamId, int Team, nint PawnHandle),
+		NativeEconItemSnapshot
+	> NativeGloveSnapshots = new();
+	private static readonly ConcurrentDictionary<
+		(int Slot, ulong SteamId, int Team, nint PawnHandle),
+		NativeWeaponSnapshot
+	> NativeKnifeSnapshots = new();
+	private static readonly ConcurrentDictionary<
+		(int Slot, ulong SteamId, int Team, nint PawnHandle, int WeaponDefIndex),
+		NativeWeaponSnapshot
+	> NativeWeaponSnapshots = new();
+	private static readonly ConcurrentDictionary<
+		(int Slot, ulong SteamId, nint ControllerHandle),
+		NativeMusicKitSnapshot
+	> NativeMusicKitSnapshots = new();
 
 	private static float? GetEconAttributeValue(CAttributeList attributeList, ushort attributeDefinitionIndex)
 	{

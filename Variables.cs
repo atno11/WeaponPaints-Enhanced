@@ -12,36 +12,6 @@ namespace WeaponPaints;
 
 public partial class WeaponPaints
 {
-	private sealed record NativeEconItemSnapshot(
-		ushort ItemDefinitionIndex,
-		int EntityQuality,
-		uint EntityLevel,
-		ulong ItemID,
-		uint ItemIDHigh,
-		uint ItemIDLow,
-		uint AccountID,
-		uint InventoryPosition,
-		bool Initialized,
-		string CustomName,
-		string CustomNameOverride,
-		float? PaintKitAttribute,
-		float? PaintSeedAttribute,
-		float? PaintWearAttribute
-	);
-
-	private sealed record NativeWeaponSnapshot(
-		NativeEconItemSnapshot Item,
-		string Classname,
-		uint OriginalOwnerXuidLow,
-		uint OriginalOwnerXuidHigh,
-		int FallbackPaintKit,
-		int FallbackSeed,
-		float FallbackWear,
-		int FallbackStatTrak
-	);
-
-	private sealed record NativeMusicKitSnapshot(int MusicKitID, ushort InventoryMusicID);
-
 	private static readonly ConcurrentDictionary<int, Action<CCSPlayerController>> MenuBackActions = new();
 
 	private static readonly ConcurrentDictionary<int, int> KnifeSelectionVersions = new();
@@ -91,22 +61,6 @@ public partial class WeaponPaints
 	private static readonly ConcurrentDictionary<int, int> MusicSelectionVersions = new();
 	private static readonly ConcurrentDictionary<int, SemaphoreSlim> MusicSyncLocks = new();
 
-	private static readonly ConcurrentDictionary<
-		(int Slot, ulong SteamId, int Team, nint PawnHandle),
-		NativeEconItemSnapshot
-	> NativeGloveSnapshots = new();
-	private static readonly ConcurrentDictionary<
-		(int Slot, ulong SteamId, int Team, nint PawnHandle),
-		NativeWeaponSnapshot
-	> NativeKnifeSnapshots = new();
-	private static readonly ConcurrentDictionary<
-		(int Slot, ulong SteamId, int Team, nint PawnHandle, int WeaponDefIndex),
-		NativeWeaponSnapshot
-	> NativeWeaponSnapshots = new();
-	private static readonly ConcurrentDictionary<
-		(int Slot, ulong SteamId, nint ControllerHandle),
-		NativeMusicKitSnapshot
-	> NativeMusicKitSnapshots = new();
 	public static IStringLocalizer? _localizer;
 	internal static readonly ConcurrentDictionary<int, ConcurrentDictionary<CsTeam, string>> GPlayersKnife = new();
 	internal static readonly ConcurrentDictionary<int, ConcurrentDictionary<CsTeam, ushort>> GPlayersGlove = new();
