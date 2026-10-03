@@ -9,78 +9,6 @@ public partial class WeaponPaints
 {
 	private void SetupAgentsMenu()
 	{
-		var handleAgentSelection = (CCSPlayerController? player, ChatMenuOption option) =>
-		{
-			if (!Utility.IsPlayerValid(player) || player is null)
-				return;
-
-			var selectedPaintName = option.Text;
-
-			var selectedAgent = AgentsList.FirstOrDefault(g =>
-				g.ContainsKey("agent_name")
-				&& g["agent_name"] != null
-				&& g["agent_name"]!.ToString() == selectedPaintName
-				&& g["team"] != null
-				&& (int)(g["team"]!) == player.TeamNum
-			);
-
-			if (selectedAgent == null)
-				return;
-
-			if (selectedAgent.ContainsKey("model"))
-			{
-				PlayerInfo playerInfo = new PlayerInfo
-				{
-					UserId = player.UserId,
-					Slot = player.Slot,
-					Index = (int)player.Index,
-					SteamId = player.SteamID.ToString(),
-					Name = player.PlayerName,
-					IpAddress = player.IpAddress?.Split(":")[0],
-				};
-
-				if (Config.Additional.ShowSkinImage)
-				{
-					var image = selectedAgent["image"]?.ToString() ?? "";
-
-					_playerWeaponImage[player.Slot] = image;
-
-					AddTimer(2.0f, () => _playerWeaponImage.Remove(player.Slot), TimerFlags.STOP_ON_MAPCHANGE);
-				}
-
-				if (!string.IsNullOrEmpty(Localizer["wp_agent_menu_select"]))
-				{
-					player.Print(Localizer["wp_agent_menu_select", selectedPaintName]);
-				}
-
-				if (player.TeamNum == 3)
-				{
-					GPlayersAgent.AddOrUpdate(
-						player.Slot,
-						key => (selectedAgent["model"]!.ToString().Equals("null") ? null : selectedAgent["model"]!.ToString(), null),
-						(key, oldValue) =>
-							(selectedAgent["model"]!.ToString().Equals("null") ? null : selectedAgent["model"]!.ToString(), oldValue.T)
-					);
-				}
-				else
-				{
-					GPlayersAgent.AddOrUpdate(
-						player.Slot,
-						key => (null, selectedAgent["model"]!.ToString().Equals("null") ? null : selectedAgent["model"]!.ToString()),
-						(key, oldValue) =>
-							(oldValue.CT, selectedAgent["model"]!.ToString().Equals("null") ? null : selectedAgent["model"]!.ToString())
-					);
-				}
-
-				GivePlayerAgent(player);
-
-				if (WeaponSync != null)
-				{
-					_ = Task.Run(async () => await WeaponSync.SyncAgentToDatabase(playerInfo));
-				}
-			}
-		};
-
 		var terroristAgentsMenu = Utility.CreateMenu(Localizer["wp_agent_menu_title"]);
 		var counterTerroristAgentsMenu = Utility.CreateMenu(Localizer["wp_agent_menu_title"]);
 
@@ -100,11 +28,29 @@ public partial class WeaponPaints
 			switch (teamNum)
 			{
 				case 2:
-					terroristAgentsMenu.AddMenuOption(paintName, handleAgentSelection);
+					terroristAgentsMenu.AddMenuOption(
+						paintName,
+						(player, option) =>
+						{
+							if (!Utility.IsPlayerValid(player))
+								return;
+
+							ApplyAgentSelection(player, option);
+						}
+					);
 					break;
 
 				case 3:
-					counterTerroristAgentsMenu.AddMenuOption(paintName, handleAgentSelection);
+					terroristAgentsMenu.AddMenuOption(
+						paintName,
+						(player, option) =>
+						{
+							if (!Utility.IsPlayerValid(player))
+								return;
+
+							ApplyAgentSelection(player, option);
+						}
+					);
 					break;
 			}
 		}
