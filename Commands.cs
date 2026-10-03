@@ -71,21 +71,6 @@ public partial class WeaponPaints
 			);
 		});
 
-		_config.Additional.CommandRefresh.ForEach(c =>
-		{
-			AddCommand(
-				$"css_{c}",
-				"Skins refresh",
-				(player, info) =>
-				{
-					if (!Utility.IsPlayerValid(player))
-						return;
-
-					OnCommandRefresh(player, info);
-				}
-			);
-		});
-
 		if (Config.Additional.CommandKillEnabled)
 		{
 			_config.Additional.CommandKill.ForEach(c =>
@@ -108,15 +93,6 @@ public partial class WeaponPaints
 				);
 			});
 		}
-
-		AddCommand(
-			"wp_refresh",
-			"Admin refresh player skins",
-			(player, info) =>
-			{
-				OnCommandSkinRefresh(player, info);
-			}
-		);
 	}
 
 	private void SetupMusicMenu()

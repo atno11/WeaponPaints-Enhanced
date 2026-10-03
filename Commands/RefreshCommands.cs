@@ -156,4 +156,31 @@ public partial class WeaponPaints
 
 		Console.WriteLine("[WeaponPaints] Refresh process completed.");
 	}
+
+	private void RegisterRefreshCommands()
+	{
+		_config.Additional.CommandRefresh.ForEach(c =>
+		{
+			AddCommand(
+				$"css_{c}",
+				"Skins refresh",
+				(player, info) =>
+				{
+					if (!Utility.IsPlayerValid(player))
+						return;
+
+					OnCommandRefresh(player, info);
+				}
+			);
+		});
+
+		AddCommand(
+			"wp_refresh",
+			"Admin refresh player skins",
+			(player, info) =>
+			{
+				OnCommandSkinRefresh(player, info);
+			}
+		);
+	}
 }
