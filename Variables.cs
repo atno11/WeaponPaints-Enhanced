@@ -27,11 +27,7 @@ public partial class WeaponPaints
 
 	//private static readonly Func<nint, string, int, int> SetBodygroup = SetBodygroupFunc.Invoke;
 
-	private const ulong MinimumCustomItemId = 65578;
-	private ulong _nextItemId = MinimumCustomItemId;
 	private static readonly bool IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-
-	private int _fadeSeed;
 
 	internal List<CCSPlayerController> Players = [];
 }

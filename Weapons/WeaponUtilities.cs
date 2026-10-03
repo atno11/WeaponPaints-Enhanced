@@ -48,6 +48,9 @@ public partial class WeaponPaints
 		UpdateWeaponMeshGroupMask(weapon, isLegacy);
 	}
 
+	private const ulong MinimumCustomItemId = 65578;
+	private ulong _nextItemId = MinimumCustomItemId;
+
 	private void UpdatePlayerEconItemId(CEconItemView econItemView)
 	{
 		var itemId = _nextItemId++;

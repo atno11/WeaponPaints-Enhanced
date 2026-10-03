@@ -9,6 +9,8 @@ namespace WeaponPaints;
 
 public partial class WeaponPaints
 {
+	private int _fadeSeed;
+
 	private void RefreshWeaponSkin(CCSPlayerController? player, int weaponDefIndex)
 	{
 		if (
