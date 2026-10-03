@@ -10,70 +10,6 @@ public partial class WeaponPaints
 {
 	private void SetupGlovesMenu()
 	{
-		var gloveFamilyMenu = Utility.CreateMenu(Localizer["wp_glove_menu_family_title"]);
-
-		if (gloveFamilyMenu == null)
-			return;
-
-		gloveFamilyMenu.AddMenuOption(
-			Localizer["wp_glove_family_default_inventory"],
-			(player, _) =>
-			{
-				if (!Utility.IsPlayerValid(player))
-					return;
-
-				ApplyInventoryGloveSelection(player);
-			}
-		);
-
-		var defaultGlove = GlovesList.FirstOrDefault(glove =>
-			int.TryParse(glove["weapon_defindex"]?.ToString(), out var weaponDefindex) && weaponDefindex == 0
-		);
-
-		if (defaultGlove != null)
-		{
-			gloveFamilyMenu.AddMenuOption(
-				Localizer["wp_glove_family_default"],
-				(player, _) =>
-				{
-					if (!Utility.IsPlayerValid(player))
-						return;
-
-					ApplyGloveSelection(player, defaultGlove);
-				}
-			);
-		}
-
-		foreach (var gloveDefindex in GloveFamilyOrder)
-		{
-			if (!GloveFamilyByDefindex.TryGetValue(gloveDefindex, out var familyId))
-			{
-				continue;
-			}
-
-			var glovesInFamily = GlovesList
-				.Where(glove =>
-					int.TryParse(glove["weapon_defindex"]?.ToString(), out var weaponDefindex) && weaponDefindex == gloveDefindex
-				)
-				.ToList();
-
-			if (glovesInFamily.Count == 0)
-				continue;
-
-			gloveFamilyMenu.AddMenuOption(
-				Localizer[$"wp_glove_family_{familyId}"],
-				(player, _) =>
-				{
-					if (!Utility.IsPlayerValid(player))
-						return;
-
-					Action<CCSPlayerController> backToGloveFamilies = backPlayer => OpenWeaponPaintsMenu(gloveFamilyMenu, backPlayer);
-
-					OpenGloveSkinMenu(player, familyId, glovesInFamily, backToGloveFamilies);
-				}
-			);
-		}
-
 		_config.Additional.CommandGlove.ForEach(c =>
 		{
 			AddCommand(
@@ -95,7 +31,7 @@ public partial class WeaponPaints
 					{
 						CommandsCooldown[player.Slot] = DateTime.UtcNow.AddSeconds(Config.CmdRefreshCooldownSeconds);
 
-						OpenWeaponPaintsMenu(gloveFamilyMenu, player);
+						OpenGloveMenu(player);
 
 						return;
 					}
