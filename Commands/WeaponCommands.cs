@@ -1,11 +1,10 @@
 using CounterStrikeSharp.API.Core;
-using CounterStrikeSharp.API.Modules.Menu;
 
 namespace WeaponPaints;
 
 public partial class WeaponPaints
 {
-	private void RegisterWeaponSkinCommands(IMenu categorySelectionMenu)
+	private void RegisterWeaponCommands()
 	{
 		_config.Additional.CommandSkinSelection.ForEach(c =>
 		{
@@ -28,7 +27,7 @@ public partial class WeaponPaints
 					{
 						CommandsCooldown[player.Slot] = DateTime.UtcNow.AddSeconds(Config.CmdRefreshCooldownSeconds);
 
-						OpenWeaponPaintsMenu(categorySelectionMenu, player);
+						OpenWeaponCategoryMenu(player);
 
 						return;
 					}

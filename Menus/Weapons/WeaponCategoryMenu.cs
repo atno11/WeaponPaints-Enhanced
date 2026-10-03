@@ -5,7 +5,7 @@ namespace WeaponPaints;
 
 public partial class WeaponPaints
 {
-	private void SetupSkinsMenu()
+	private void OpenWeaponCategoryMenu(CCSPlayerController player)
 	{
 		var classNamesByWeapon = WeaponList
 			.Except([new KeyValuePair<string, string>("weapon_knife", "Default Knife")])
@@ -36,8 +36,6 @@ public partial class WeaponPaints
 			return;
 
 		BuildWeaponCategoryMenu(categorySelectionMenu, supportedWeaponClassnames, classNamesByWeapon, knifeSkinDefindexes);
-
-		RegisterWeaponSkinCommands(categorySelectionMenu);
 	}
 
 	private void BuildWeaponCategoryMenu(

@@ -128,7 +128,7 @@ public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig
 			if (Config.Additional.KnifeEnabled)
 				SetupKnifeMenu();
 			if (Config.Additional.SkinEnabled)
-				SetupSkinsMenu();
+				RegisterWeaponCommands();
 			if (Config.Additional.GloveEnabled)
 				SetupGlovesMenu();
 			if (Config.Additional.AgentEnabled)
