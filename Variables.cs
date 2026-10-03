@@ -12,8 +12,6 @@ namespace WeaponPaints;
 
 public partial class WeaponPaints
 {
-	public static IStringLocalizer? _localizer;
-
 	//we dont need anymore because we use AcceptInput
 	//private static readonly MemoryFunctionWithReturn<nint, string, int, int> SetBodygroupFunc = new(
 	//	GameData.GetSignature("CBaseModelEntity_SetBodygroup"));

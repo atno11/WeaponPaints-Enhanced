@@ -5,6 +5,7 @@ using CounterStrikeSharp.API.Core.Attributes;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
 using CounterStrikeSharp.API.Modules.Commands;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using MySqlConnector;
 
@@ -13,6 +14,7 @@ namespace WeaponPaints;
 [MinimumApiVersion(338)]
 public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig>
 {
+	public static IStringLocalizer? _localizer;
 	internal static WeaponPaints Instance { get; private set; } = new();
 
 	public WeaponPaintsConfig Config { get; set; } = new();
