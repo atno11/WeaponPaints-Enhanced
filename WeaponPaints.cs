@@ -130,7 +130,7 @@ public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig
 			if (Config.Additional.SkinEnabled)
 				RegisterWeaponCommands();
 			if (Config.Additional.GloveEnabled)
-				SetupGlovesMenu();
+				RegisterGloveCommands();
 			if (Config.Additional.AgentEnabled)
 				SetupAgentsMenu();
 			if (Config.Additional.MusicEnabled)

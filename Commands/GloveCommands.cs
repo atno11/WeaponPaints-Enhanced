@@ -1,14 +1,10 @@
-using System.Collections.Concurrent;
 using CounterStrikeSharp.API.Core;
-using CounterStrikeSharp.API.Modules.Timers;
-using CounterStrikeSharp.API.Modules.Utils;
-using Newtonsoft.Json.Linq;
 
 namespace WeaponPaints;
 
 public partial class WeaponPaints
 {
-	private void SetupGlovesMenu()
+	private void RegisterGloveCommands()
 	{
 		_config.Additional.CommandGlove.ForEach(c =>
 		{
