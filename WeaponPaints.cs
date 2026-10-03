@@ -1,18 +1,14 @@
-using System.Runtime.InteropServices;
-using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes;
-using CounterStrikeSharp.API.Core.Attributes.Registration;
-using CounterStrikeSharp.API.Modules.Commands;
-using CounterStrikeSharp.API.Modules.Entities.Constants;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
-using MySqlConnector;
 
 namespace WeaponPaints;
 
 [MinimumApiVersion(338)]
 public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig>
 {
+	public static IStringLocalizer? _localizer;
 	internal static WeaponPaints Instance { get; private set; } = new();
 
 	public WeaponPaintsConfig Config { get; set; } = new();
@@ -39,114 +35,9 @@ public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig
 		Logger.LogInformation("Repository: {Repository}", EnhancedRepository);
 
 		if (hotReload)
-		{
-			OnMapStart(string.Empty);
-
-			GPlayerWeaponsInfo.Clear();
-			GPlayersKnife.Clear();
-			GPlayersGlove.Clear();
-			GPlayersAgent.Clear();
-			GPlayersPin.Clear();
-			GPlayersMusic.Clear();
-
-			foreach (
-				var player in Enumerable
-					.OfType<CCSPlayerController>(Utilities.GetPlayers().TakeWhile(_ => WeaponSync != null))
-					.Where(player =>
-						player.IsValid
-						&& !string.IsNullOrEmpty(player.IpAddress)
-						&& player is { IsBot: false, Connected: PlayerConnectedState.Connected }
-					)
-			)
-			{
-				var playerInfo = new PlayerInfo
-				{
-					UserId = player.UserId,
-					Slot = player.Slot,
-					Index = (int)player.Index,
-					SteamId = player?.SteamID.ToString(),
-					Name = player?.PlayerName,
-					IpAddress = player?.IpAddress?.Split(":")[0],
-				};
-
-				_ = Task.Run(async () =>
-				{
-					if (WeaponSync != null)
-						await WeaponSync.GetPlayerData(playerInfo);
-				});
-			}
-		}
+			InitializeHotReload();
 
 		Utility.LoadLocalizedCatalogs(Path.Combine(ModuleDirectory, "data"), _config.SkinsLanguage, Logger);
 		RegisterListeners();
-	}
-
-	public void OnConfigParsed(WeaponPaintsConfig config)
-	{
-		Config = config;
-		_config = config;
-
-		if (config.DatabaseHost.Length < 1 || config.DatabaseName.Length < 1 || config.DatabaseUser.Length < 1)
-		{
-			Logger.LogError("You need to setup Database credentials in \"configs/plugins/WeaponPaints/WeaponPaints.json\"!");
-			Unload(false);
-			return;
-		}
-
-		if (!File.Exists(Path.GetDirectoryName(Path.GetDirectoryName(ModuleDirectory)) + "/gamedata/weaponpaints.json"))
-		{
-			Logger.LogError("You need to upload \"weaponpaints.json\" to \"gamedata directory\"!");
-			Unload(false);
-			return;
-		}
-
-		var builder = new MySqlConnectionStringBuilder
-		{
-			Server = config.DatabaseHost,
-			UserID = config.DatabaseUser,
-			Password = config.DatabasePassword,
-			Database = config.DatabaseName,
-			Port = (uint)config.DatabasePort,
-			Pooling = true,
-			MaximumPoolSize = 640,
-		};
-
-		Database = new Database(builder.ConnectionString);
-
-		_ = Utility.CheckDatabaseTables();
-		_localizer = Localizer;
-
-		Utility.Config = config;
-	}
-
-	public override void OnAllPluginsLoaded(bool hotReload)
-	{
-		try
-		{
-			MenuApi = MenuCapability.Get();
-
-			if (Config.Additional.KnifeEnabled)
-				SetupKnifeMenu();
-			if (Config.Additional.SkinEnabled)
-				SetupSkinsMenu();
-			if (Config.Additional.GloveEnabled)
-				SetupGlovesMenu();
-			if (Config.Additional.AgentEnabled)
-				SetupAgentsMenu();
-			if (Config.Additional.MusicEnabled)
-				SetupMusicMenu();
-			if (Config.Additional.PinsEnabled)
-				SetupPinsMenu();
-
-			SetupMenuNavigationButtons();
-
-			RegisterCommands();
-		}
-		catch (Exception)
-		{
-			MenuApi = null;
-			Logger.LogError("Error while loading required plugins");
-			throw;
-		}
 	}
 }
