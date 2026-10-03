@@ -12,8 +12,6 @@ namespace WeaponPaints;
 
 public partial class WeaponPaints
 {
-	private static readonly ConcurrentDictionary<int, Action<CCSPlayerController>> MenuBackActions = new();
-
 	public static IStringLocalizer? _localizer;
 	internal static WeaponSynchronization? WeaponSync;
 	private static bool _gBCommandsAllowed = true;
@@ -37,9 +35,6 @@ public partial class WeaponPaints
 	private static readonly bool IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
 	private readonly ConcurrentDictionary<int, ConcurrentDictionary<int, float>> _temporaryPlayerWeaponWear = new();
-
-	internal static IMenuApi? MenuApi;
-	private static readonly PluginCapability<IMenuApi> MenuCapability = new("menu:nfcore");
 
 	private int _fadeSeed;
 
