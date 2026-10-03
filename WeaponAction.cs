@@ -889,6 +889,28 @@ namespace WeaponPaints
 			return player.TeamNum == (int)CsTeam.Terrorist ? "weapon_knife_t" : "weapon_knife";
 		}
 
+		private void ApplyPlayerKnifeRuntimeSelection(CCSPlayerController player, int selectionVersion)
+		{
+			AddTimer(
+				0.20f,
+				() =>
+				{
+					if (
+						!Utility.IsPlayerValid(player)
+						|| (LifeState_t)player.LifeState != LifeState_t.LIFE_ALIVE
+						|| !KnifeSelectionVersions.TryGetValue(player.Slot, out var currentVersion)
+						|| currentVersion != selectionVersion
+					)
+					{
+						return;
+					}
+
+					RecreatePlayerKnife(player, selectionVersion);
+				},
+				TimerFlags.STOP_ON_MAPCHANGE
+			);
+		}
+
 		private void RecreatePlayerKnife(CCSPlayerController player, int selectionVersion)
 		{
 			if (
@@ -896,12 +918,16 @@ namespace WeaponPaints
 				|| player.PlayerPawn.Value == null
 				|| player.PlayerPawn.Value.WeaponServices == null
 				|| (LifeState_t)player.LifeState != LifeState_t.LIFE_ALIVE
+				|| !KnifeSelectionVersions.TryGetValue(player.Slot, out var currentVersion)
+				|| currentVersion != selectionVersion
 			)
 			{
 				return;
 			}
 
-			var weapons = player.PlayerPawn.Value.WeaponServices.MyWeapons;
+			var pawn = player.PlayerPawn.Value;
+			var pawnHandle = pawn.Handle;
+			var weapons = pawn.WeaponServices.MyWeapons;
 
 			foreach (var weaponHandle in weapons.ToList())
 			{
@@ -909,6 +935,7 @@ namespace WeaponPaints
 					continue;
 
 				var existingWeapon = weaponHandle.Value;
+
 				if (existingWeapon.DesignerName.Contains("knife") || existingWeapon.DesignerName.Contains("bayonet"))
 				{
 					CaptureNativeWeaponSnapshot(player, existingWeapon);
@@ -916,19 +943,20 @@ namespace WeaponPaints
 				}
 			}
 
+			if (!KnifeSelectionVersions.TryGetValue(player.Slot, out currentVersion) || currentVersion != selectionVersion)
+			{
+				return;
+			}
+
 			foreach (var weaponHandle in weapons.ToList())
 			{
 				if (!weaponHandle.IsValid || weaponHandle.Value == null || !weaponHandle.Value.IsValid)
-				{
 					continue;
-				}
 
 				var weapon = weaponHandle.Value;
 
 				if (!weapon.DesignerName.Contains("knife") && !weapon.DesignerName.Contains("bayonet"))
-				{
 					continue;
-				}
 
 				try
 				{
@@ -947,13 +975,11 @@ namespace WeaponPaints
 					if (
 						!Utility.IsPlayerValid(player)
 						|| player.PlayerPawn.Value == null
+						|| player.PlayerPawn.Value.Handle != pawnHandle
 						|| (LifeState_t)player.LifeState != LifeState_t.LIFE_ALIVE
+						|| !KnifeSelectionVersions.TryGetValue(player.Slot, out var latestVersion)
+						|| latestVersion != selectionVersion
 					)
-					{
-						return;
-					}
-
-					if (!KnifeSelectionVersions.TryGetValue(player.Slot, out var currentVersion) || currentVersion != selectionVersion)
 					{
 						return;
 					}
@@ -982,9 +1008,11 @@ namespace WeaponPaints
 						{
 							if (
 								!Utility.IsPlayerValid(player)
+								|| player.PlayerPawn.Value == null
+								|| player.PlayerPawn.Value.Handle != pawnHandle
 								|| !newKnife.IsValid
-								|| !KnifeSelectionVersions.TryGetValue(player.Slot, out var latestVersion)
-								|| latestVersion != selectionVersion
+								|| !KnifeSelectionVersions.TryGetValue(player.Slot, out var finalVersion)
+								|| finalVersion != selectionVersion
 							)
 							{
 								return;
