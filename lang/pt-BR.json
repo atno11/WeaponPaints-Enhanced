@@ -44,5 +44,12 @@
   "wp_glove_family_moto": "Luvas de Moto",
   "wp_glove_family_specialist": "Luvas de Especialista",
   "wp_glove_family_sport": "Luvas Esportivas",
-  "wp_menu_back": "← Voltar"
+  "wp_menu_back": "← Voltar",
+  "wp_float_usage": "Uso: !float <valor>. Exemplo: !float 0.123456",
+  "wp_float_invalid": "Valor de float inválido.",
+  "wp_float_range": "O float deve estar entre {0} e {1}.",
+  "wp_float_no_weapon": "Você precisa estar com uma arma equipada.",
+  "wp_float_no_skin": "A arma equipada não possui uma skin personalizada.",
+  "wp_float_failed": "Não foi possível atualizar o float da arma.",
+  "wp_float_updated": "Float atualizado para {0}."
 }

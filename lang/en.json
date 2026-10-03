@@ -44,5 +44,12 @@
   "wp_glove_family_moto": "Moto Gloves",
   "wp_glove_family_specialist": "Specialist Gloves",
   "wp_glove_family_sport": "Sport Gloves",
-  "wp_menu_back": "← Back"
+  "wp_menu_back": "← Back",
+  "wp_float_usage": "Usage: !float <value>. Example: !float 0.123456",
+  "wp_float_invalid": "Invalid float value.",
+  "wp_float_range": "Float must be between {0} and {1}.",
+  "wp_float_no_weapon": "You need to have a weapon equipped.",
+  "wp_float_no_skin": "The equipped weapon does not have a custom skin.",
+  "wp_float_failed": "Unable to update the weapon float.",
+  "wp_float_updated": "Float updated to {0}."
 }
