@@ -132,7 +132,7 @@ public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig
 			if (Config.Additional.GloveEnabled)
 				RegisterGloveCommands();
 			if (Config.Additional.AgentEnabled)
-				SetupAgentsMenu();
+				RegisterAgentCommands();
 			if (Config.Additional.MusicEnabled)
 				SetupMusicMenu();
 			if (Config.Additional.PinsEnabled)

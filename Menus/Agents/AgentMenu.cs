@@ -7,8 +7,11 @@ namespace WeaponPaints;
 
 public partial class WeaponPaints
 {
-	private void SetupAgentsMenu()
+	private void OpenAgentMenu(CCSPlayerController player)
 	{
+		if (!Utility.IsPlayerValid(player))
+			return;
+
 		var terroristAgentsMenu = Utility.CreateMenu(Localizer["wp_agent_menu_title"]);
 		var counterTerroristAgentsMenu = Utility.CreateMenu(Localizer["wp_agent_menu_title"]);
 
@@ -54,48 +57,16 @@ public partial class WeaponPaints
 					break;
 			}
 		}
-
-		_config.Additional.CommandAgent.ForEach(c =>
+		var agentsSelectionMenu = player.TeamNum switch
 		{
-			AddCommand(
-				$"css_{c}",
-				"Agents selection menu",
-				(player, _) =>
-				{
-					if (!Utility.IsPlayerValid(player) || !_gBCommandsAllowed)
-						return;
+			2 => terroristAgentsMenu,
+			3 => counterTerroristAgentsMenu,
+			_ => null,
+		};
 
-					if (player == null || player.UserId == null)
-						return;
+		if (agentsSelectionMenu == null)
+			return;
 
-					if (
-						!CommandsCooldown.TryGetValue(player.Slot, out DateTime cooldownEndTime)
-						|| DateTime.UtcNow
-							>= (CommandsCooldown.TryGetValue(player.Slot, out cooldownEndTime) ? cooldownEndTime : DateTime.UtcNow)
-					)
-					{
-						var agentsSelectionMenu = player.TeamNum switch
-						{
-							2 => terroristAgentsMenu,
-							3 => counterTerroristAgentsMenu,
-							_ => null,
-						};
-
-						if (agentsSelectionMenu == null)
-							return;
-						CommandsCooldown[player.Slot] = DateTime.UtcNow.AddSeconds(Config.CmdRefreshCooldownSeconds);
-
-						OpenWeaponPaintsMenu(agentsSelectionMenu, player);
-
-						return;
-					}
-
-					if (!string.IsNullOrEmpty(Localizer["wp_command_cooldown"]))
-					{
-						player.Print(Localizer["wp_command_cooldown"]);
-					}
-				}
-			);
-		});
+		OpenWeaponPaintsMenu(agentsSelectionMenu, player);
 	}
 }
