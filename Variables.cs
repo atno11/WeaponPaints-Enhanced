@@ -14,7 +14,6 @@ public partial class WeaponPaints
 {
 	public static IStringLocalizer? _localizer;
 	internal static WeaponSynchronization? WeaponSync;
-	private readonly Dictionary<int, string> _playerWeaponImage = new();
 
 	internal static Database? Database;
 
