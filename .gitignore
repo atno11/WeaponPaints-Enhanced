@@ -4,3 +4,5 @@ obj/
 website/getskins.php
 .idea/
 WeaponPaints.sln.DotSettings.user
+
+tmp/
