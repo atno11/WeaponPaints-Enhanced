@@ -46,4 +46,22 @@ public partial class WeaponPaints
 			player!.Print(Localizer["wp_info_knife"]);
 		}
 	}
+
+	private void RegisterSkinInfoCommands()
+	{
+		_config.Additional.CommandSkin.ForEach(c =>
+		{
+			AddCommand(
+				$"css_{c}",
+				"Skins info",
+				(player, info) =>
+				{
+					if (!Utility.IsPlayerValid(player))
+						return;
+
+					OnCommandWS(player, info);
+				}
+			);
+		});
+	}
 }

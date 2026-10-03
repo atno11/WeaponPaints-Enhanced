@@ -14,21 +14,6 @@ public partial class WeaponPaints
 {
 	private void RegisterCommands()
 	{
-		_config.Additional.CommandSkin.ForEach(c =>
-		{
-			AddCommand(
-				$"css_{c}",
-				"Skins info",
-				(player, info) =>
-				{
-					if (!Utility.IsPlayerValid(player))
-						return;
-
-					OnCommandWS(player, info);
-				}
-			);
-		});
-
 		if (Config.Additional.CommandKillEnabled)
 		{
 			_config.Additional.CommandKill.ForEach(c =>
