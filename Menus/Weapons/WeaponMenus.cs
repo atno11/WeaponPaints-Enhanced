@@ -60,25 +60,7 @@ public partial class WeaponPaints
 
 					Action<CCSPlayerController> backToCategories = backPlayer => OpenWeaponPaintsMenu(categorySelectionMenu, backPlayer);
 
-					var weaponSelectionMenu = Utility.CreateMenu(Localizer["wp_skin_menu_weapon_title"]);
-
-					if (weaponSelectionMenu == null)
-						return;
-
-					Action<CCSPlayerController> backToWeapons = backPlayer =>
-						OpenWeaponPaintsMenu(weaponSelectionMenu, backPlayer, backToCategories);
-
-					AddBackMenuOption(weaponSelectionMenu, backToCategories);
-
-					foreach (var weapon in weaponsInCategory)
-					{
-						weaponSelectionMenu.AddMenuOption(
-							weapon.Value,
-							(p, option) => OpenWeaponSkinMenu(p, option, backToWeapons, classNamesByWeapon, knifeSkinDefindexes)
-						);
-					}
-
-					OpenWeaponPaintsMenu(weaponSelectionMenu, player, backToCategories);
+					OpenWeaponMenu(player, weaponsInCategory, backToCategories, classNamesByWeapon, knifeSkinDefindexes);
 				}
 			);
 		}
