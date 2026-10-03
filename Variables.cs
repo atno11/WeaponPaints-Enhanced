@@ -12,6 +12,38 @@ namespace WeaponPaints;
 
 public partial class WeaponPaints
 {
+	private sealed record NativeEconItemSnapshot(
+		ushort ItemDefinitionIndex,
+		int EntityQuality,
+		uint EntityLevel,
+		ulong ItemID,
+		uint ItemIDHigh,
+		uint ItemIDLow,
+		uint AccountID,
+		uint InventoryPosition,
+		bool Initialized,
+		string CustomName,
+		string CustomNameOverride,
+		float? PaintKitAttribute,
+		float? PaintSeedAttribute,
+		float? PaintWearAttribute
+	);
+
+	private sealed record NativeWeaponSnapshot(
+		NativeEconItemSnapshot Item,
+		string Classname,
+		uint OriginalOwnerXuidLow,
+		uint OriginalOwnerXuidHigh,
+		int FallbackPaintKit,
+		int FallbackSeed,
+		float FallbackWear,
+		int FallbackStatTrak
+	);
+
+	private sealed record NativeMusicKitSnapshot(int MusicKitID, ushort InventoryMusicID);
+
+	private static readonly ConcurrentDictionary<int, Action<CCSPlayerController>> MenuBackActions = new();
+
 	private static readonly Dictionary<string, string> WeaponList = new()
 	{
 		{ "weapon_deagle", "Desert Eagle" },
@@ -72,6 +104,162 @@ public partial class WeaponPaints
 		{ "weapon_knife_kukri", "Kukri Knife" },
 	};
 
+	private static readonly Dictionary<int, string> GloveFamilyByDefindex = new()
+	{
+		{ 5027, "bloodhound" },
+		{ 4725, "broken_fang" },
+		{ 5031, "driver" },
+		{ 5032, "hand_wraps" },
+		{ 5035, "hydra" },
+		{ 5033, "moto" },
+		{ 5034, "specialist" },
+		{ 5030, "sport" },
+	};
+
+	private static readonly int[] GloveFamilyOrder = [5027, 4725, 5031, 5032, 5035, 5033, 5034, 5030];
+
+	private static readonly Dictionary<string, string> WeaponCategoryByClassname = new()
+	{
+		// Pistols
+		{ "weapon_deagle", "pistols" },
+		{ "weapon_elite", "pistols" },
+		{ "weapon_fiveseven", "pistols" },
+		{ "weapon_glock", "pistols" },
+		{ "weapon_hkp2000", "pistols" },
+		{ "weapon_p250", "pistols" },
+		{ "weapon_tec9", "pistols" },
+		{ "weapon_usp_silencer", "pistols" },
+		{ "weapon_cz75a", "pistols" },
+		{ "weapon_revolver", "pistols" },
+		// Rifles
+		{ "weapon_ak47", "rifles" },
+		{ "weapon_aug", "rifles" },
+		{ "weapon_famas", "rifles" },
+		{ "weapon_galilar", "rifles" },
+		{ "weapon_m4a1", "rifles" },
+		{ "weapon_m4a1_silencer", "rifles" },
+		{ "weapon_sg556", "rifles" },
+		// SMGs
+		{ "weapon_bizon", "smgs" },
+		{ "weapon_mac10", "smgs" },
+		{ "weapon_mp5sd", "smgs" },
+		{ "weapon_mp7", "smgs" },
+		{ "weapon_mp9", "smgs" },
+		{ "weapon_p90", "smgs" },
+		{ "weapon_ump45", "smgs" },
+		// Shotguns
+		{ "weapon_mag7", "shotguns" },
+		{ "weapon_nova", "shotguns" },
+		{ "weapon_sawedoff", "shotguns" },
+		{ "weapon_xm1014", "shotguns" },
+		// Sniper Rifles
+		{ "weapon_awp", "sniper_rifles" },
+		{ "weapon_g3sg1", "sniper_rifles" },
+		{ "weapon_scar20", "sniper_rifles" },
+		{ "weapon_ssg08", "sniper_rifles" },
+		// Machine Guns
+		{ "weapon_m249", "machine_guns" },
+		{ "weapon_negev", "machine_guns" },
+		// Equipment
+		{ "weapon_taser", "equipment" },
+		// Knives
+		{ "weapon_bayonet", "knives" },
+		{ "weapon_knife_butterfly", "knives" },
+		{ "weapon_knife_canis", "knives" },
+		{ "weapon_knife_cord", "knives" },
+		{ "weapon_knife_css", "knives" },
+		{ "weapon_knife_falchion", "knives" },
+		{ "weapon_knife_flip", "knives" },
+		{ "weapon_knife_gut", "knives" },
+		{ "weapon_knife_gypsy_jackknife", "knives" },
+		{ "weapon_knife_karambit", "knives" },
+		{ "weapon_knife_kukri", "knives" },
+		{ "weapon_knife_m9_bayonet", "knives" },
+		{ "weapon_knife_outdoor", "knives" },
+		{ "weapon_knife_push", "knives" },
+		{ "weapon_knife_skeleton", "knives" },
+		{ "weapon_knife_stiletto", "knives" },
+		{ "weapon_knife_survival_bowie", "knives" },
+		{ "weapon_knife_tactical", "knives" },
+		{ "weapon_knife_ursus", "knives" },
+		{ "weapon_knife_widowmaker", "knives" },
+	};
+
+	private static readonly string[] WeaponCategoryOrder =
+	[
+		"pistols",
+		"rifles",
+		"smgs",
+		"shotguns",
+		"sniper_rifles",
+		"machine_guns",
+		"equipment",
+		"knives",
+	];
+
+	private static readonly ConcurrentDictionary<int, int> KnifeSelectionVersions = new();
+
+	internal static int GetKnifeSelectionVersion(int slot)
+	{
+		return KnifeSelectionVersions.TryGetValue(slot, out var version) ? version : 0;
+	}
+
+	internal static int GetGloveSelectionVersion(int slot)
+	{
+		return GloveSelectionVersions.TryGetValue(slot, out var version) ? version : 0;
+	}
+
+	internal static int GetMusicSelectionVersion(int slot)
+	{
+		return MusicSelectionVersions.TryGetValue(slot, out var version) ? version : 0;
+	}
+
+	internal static int GetSkinSelectionVersion(int slot, int weaponDefindex)
+	{
+		return SkinSelectionVersions.TryGetValue((slot, weaponDefindex), out var version) ? version : 0;
+	}
+
+	internal static Dictionary<int, int> GetSkinSelectionVersions(int slot)
+	{
+		return SkinSelectionVersions
+			.Where(entry => entry.Key.Slot == slot)
+			.ToDictionary(entry => entry.Key.WeaponDefIndex, entry => entry.Value);
+	}
+
+	internal static bool IsKnifeDefindex(int defindex)
+	{
+		return WeaponDefindex.TryGetValue(defindex, out var classname) && (classname.Contains("knife") || classname.Contains("bayonet"));
+	}
+
+	internal static bool IsGloveDefindex(int defindex)
+	{
+		return GloveFamilyByDefindex.ContainsKey(defindex);
+	}
+
+	private static readonly ConcurrentDictionary<int, SemaphoreSlim> KnifeSyncLocks = new();
+	private static readonly ConcurrentDictionary<int, int> GloveSelectionVersions = new();
+	private static readonly ConcurrentDictionary<int, SemaphoreSlim> GloveSyncLocks = new();
+	private static readonly ConcurrentDictionary<(int Slot, int WeaponDefIndex), int> SkinSelectionVersions = new();
+	private static readonly ConcurrentDictionary<int, SemaphoreSlim> SkinSyncLocks = new();
+	private static readonly ConcurrentDictionary<int, int> MusicSelectionVersions = new();
+	private static readonly ConcurrentDictionary<int, SemaphoreSlim> MusicSyncLocks = new();
+
+	private static readonly ConcurrentDictionary<
+		(int Slot, ulong SteamId, int Team, nint PawnHandle),
+		NativeEconItemSnapshot
+	> NativeGloveSnapshots = new();
+	private static readonly ConcurrentDictionary<
+		(int Slot, ulong SteamId, int Team, nint PawnHandle),
+		NativeWeaponSnapshot
+	> NativeKnifeSnapshots = new();
+	private static readonly ConcurrentDictionary<
+		(int Slot, ulong SteamId, int Team, nint PawnHandle, int WeaponDefIndex),
+		NativeWeaponSnapshot
+	> NativeWeaponSnapshots = new();
+	private static readonly ConcurrentDictionary<
+		(int Slot, ulong SteamId, nint ControllerHandle),
+		NativeMusicKitSnapshot
+	> NativeMusicKitSnapshots = new();
 	public static IStringLocalizer? _localizer;
 	internal static readonly ConcurrentDictionary<int, ConcurrentDictionary<CsTeam, string>> GPlayersKnife = new();
 	internal static readonly ConcurrentDictionary<int, ConcurrentDictionary<CsTeam, ushort>> GPlayersGlove = new();

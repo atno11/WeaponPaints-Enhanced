@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
@@ -12,10 +12,592 @@ namespace WeaponPaints
 {
 	public partial class WeaponPaints
 	{
+		private const ushort PaintKitAttributeDefinitionIndex = 6;
+		private const ushort PaintSeedAttributeDefinitionIndex = 7;
+		private const ushort PaintWearAttributeDefinitionIndex = 8;
+
+		private static float? GetEconAttributeValue(CAttributeList attributeList, ushort attributeDefinitionIndex)
+		{
+			var attributes = attributeList.Attributes;
+			var count = NativeAPI.GetNetworkVectorSize(attributes.Handle);
+
+			for (var i = 0; i < count; i++)
+			{
+				var attributePointer = NativeAPI.GetNetworkVectorElementAt(attributes.Handle, i);
+
+				if (attributePointer == nint.Zero)
+					continue;
+
+				var attribute = new CEconItemAttribute(attributePointer);
+
+				if (attribute.AttributeDefinitionIndex == attributeDefinitionIndex)
+					return attribute.Value;
+			}
+
+			return null;
+		}
+
+		private static float? GetEconAttributeValue(CEconItemView item, ushort attributeDefinitionIndex)
+		{
+			try
+			{
+				return GetEconAttributeValue(item.NetworkedDynamicAttributes, attributeDefinitionIndex)
+					?? GetEconAttributeValue(item.AttributeList, attributeDefinitionIndex);
+			}
+			catch
+			{
+				// Snapshot failure must never prevent WeaponPaints from applying the selected custom item.
+				return null;
+			}
+		}
+
+		private static NativeEconItemSnapshot CreateNativeEconItemSnapshot(CEconItemView item)
+		{
+			return new NativeEconItemSnapshot(
+				item.ItemDefinitionIndex,
+				item.EntityQuality,
+				item.EntityLevel,
+				item.ItemID,
+				item.ItemIDHigh,
+				item.ItemIDLow,
+				item.AccountID,
+				item.InventoryPosition,
+				item.Initialized,
+				item.CustomName,
+				item.CustomNameOverride,
+				GetEconAttributeValue(item, PaintKitAttributeDefinitionIndex),
+				GetEconAttributeValue(item, PaintSeedAttributeDefinitionIndex),
+				GetEconAttributeValue(item, PaintWearAttributeDefinitionIndex)
+			);
+		}
+
+		private static NativeWeaponSnapshot CreateNativeWeaponSnapshot(CBasePlayerWeapon weapon)
+		{
+			return new NativeWeaponSnapshot(
+				CreateNativeEconItemSnapshot(weapon.AttributeManager.Item),
+				weapon.DesignerName,
+				weapon.OriginalOwnerXuidLow,
+				weapon.OriginalOwnerXuidHigh,
+				weapon.FallbackPaintKit,
+				weapon.FallbackSeed,
+				weapon.FallbackWear,
+				weapon.FallbackStatTrak
+			);
+		}
+
+		private static void PruneNativePawnSnapshots(CCSPlayerController player, nint pawnHandle)
+		{
+			foreach (var key in NativeGloveSnapshots.Keys)
+			{
+				if (key.Slot == player.Slot && (key.SteamId != player.SteamID || key.PawnHandle != pawnHandle))
+					NativeGloveSnapshots.TryRemove(key, out _);
+			}
+
+			foreach (var key in NativeKnifeSnapshots.Keys)
+			{
+				if (key.Slot == player.Slot && (key.SteamId != player.SteamID || key.PawnHandle != pawnHandle))
+					NativeKnifeSnapshots.TryRemove(key, out _);
+			}
+
+			foreach (var key in NativeWeaponSnapshots.Keys)
+			{
+				if (key.Slot == player.Slot && (key.SteamId != player.SteamID || key.PawnHandle != pawnHandle))
+					NativeWeaponSnapshots.TryRemove(key, out _);
+			}
+		}
+
+		private static void CaptureNativeWeaponSnapshot(CCSPlayerController player, CBasePlayerWeapon weapon)
+		{
+			var pawn = player.PlayerPawn.Value;
+			if (pawn == null || !pawn.IsValid || !weapon.IsValid)
+				return;
+
+			PruneNativePawnSnapshots(player, pawn.Handle);
+
+			var snapshot = CreateNativeWeaponSnapshot(weapon);
+			var isKnife = weapon.DesignerName.Contains("knife") || weapon.DesignerName.Contains("bayonet");
+
+			if (isKnife)
+			{
+				NativeKnifeSnapshots.TryAdd((player.Slot, player.SteamID, player.TeamNum, pawn.Handle), snapshot);
+				return;
+			}
+
+			NativeWeaponSnapshots.TryAdd(
+				(player.Slot, player.SteamID, player.TeamNum, pawn.Handle, snapshot.Item.ItemDefinitionIndex),
+				snapshot
+			);
+		}
+
+		private static void CaptureNativeGloveSnapshot(CCSPlayerController player)
+		{
+			var pawn = player.PlayerPawn.Value;
+			if (pawn == null || !pawn.IsValid)
+				return;
+
+			PruneNativePawnSnapshots(player, pawn.Handle);
+			NativeGloveSnapshots.TryAdd(
+				(player.Slot, player.SteamID, player.TeamNum, pawn.Handle),
+				CreateNativeEconItemSnapshot(pawn.EconGloves)
+			);
+		}
+
+		private static void CaptureNativeMusicKitSnapshot(CCSPlayerController player)
+		{
+			if (player.InventoryServices == null)
+				return;
+
+			foreach (var key in NativeMusicKitSnapshots.Keys)
+			{
+				if (key.Slot == player.Slot && (key.SteamId != player.SteamID || key.ControllerHandle != player.Handle))
+					NativeMusicKitSnapshots.TryRemove(key, out _);
+			}
+
+			NativeMusicKitSnapshots.TryAdd(
+				(player.Slot, player.SteamID, player.Handle),
+				new NativeMusicKitSnapshot(player.MusicKitID, player.InventoryServices.MusicID)
+			);
+		}
+
+		private static void RestoreTextureAttributes(CEconItemView item, NativeEconItemSnapshot snapshot)
+		{
+			item.NetworkedDynamicAttributes.Attributes.RemoveAll();
+			item.AttributeList.Attributes.RemoveAll();
+
+			if (snapshot.PaintKitAttribute.HasValue)
+			{
+				CAttributeListSetOrAddAttributeValueByName.Invoke(
+					item.NetworkedDynamicAttributes.Handle,
+					"set item texture prefab",
+					snapshot.PaintKitAttribute.Value
+				);
+				CAttributeListSetOrAddAttributeValueByName.Invoke(
+					item.AttributeList.Handle,
+					"set item texture prefab",
+					snapshot.PaintKitAttribute.Value
+				);
+			}
+
+			if (snapshot.PaintSeedAttribute.HasValue)
+			{
+				CAttributeListSetOrAddAttributeValueByName.Invoke(
+					item.NetworkedDynamicAttributes.Handle,
+					"set item texture seed",
+					snapshot.PaintSeedAttribute.Value
+				);
+				CAttributeListSetOrAddAttributeValueByName.Invoke(
+					item.AttributeList.Handle,
+					"set item texture seed",
+					snapshot.PaintSeedAttribute.Value
+				);
+			}
+
+			if (snapshot.PaintWearAttribute.HasValue)
+			{
+				CAttributeListSetOrAddAttributeValueByName.Invoke(
+					item.NetworkedDynamicAttributes.Handle,
+					"set item texture wear",
+					snapshot.PaintWearAttribute.Value
+				);
+				CAttributeListSetOrAddAttributeValueByName.Invoke(
+					item.AttributeList.Handle,
+					"set item texture wear",
+					snapshot.PaintWearAttribute.Value
+				);
+			}
+		}
+
+		private static void ApplyNativeEconItemSnapshot(CEconItemView item, NativeEconItemSnapshot snapshot)
+		{
+			item.ItemDefinitionIndex = snapshot.ItemDefinitionIndex;
+			item.EntityQuality = snapshot.EntityQuality;
+			item.EntityLevel = snapshot.EntityLevel;
+			item.ItemID = snapshot.ItemID;
+			item.ItemIDHigh = snapshot.ItemIDHigh;
+			item.ItemIDLow = snapshot.ItemIDLow;
+			item.AccountID = snapshot.AccountID;
+			item.InventoryPosition = snapshot.InventoryPosition;
+			item.CustomName = snapshot.CustomName;
+			item.CustomNameOverride = snapshot.CustomNameOverride;
+			RestoreTextureAttributes(item, snapshot);
+			item.Initialized = snapshot.Initialized;
+		}
+
+		private static void ApplyNativeWeaponSnapshot(CBasePlayerWeapon weapon, NativeWeaponSnapshot snapshot)
+		{
+			if (weapon.AttributeManager.Item.ItemDefinitionIndex != snapshot.Item.ItemDefinitionIndex)
+				SubclassChange(weapon, snapshot.Item.ItemDefinitionIndex);
+
+			ApplyNativeEconItemSnapshot(weapon.AttributeManager.Item, snapshot.Item);
+			weapon.OriginalOwnerXuidLow = snapshot.OriginalOwnerXuidLow;
+			weapon.OriginalOwnerXuidHigh = snapshot.OriginalOwnerXuidHigh;
+			weapon.FallbackPaintKit = snapshot.FallbackPaintKit;
+			weapon.FallbackSeed = snapshot.FallbackSeed;
+			weapon.FallbackWear = snapshot.FallbackWear;
+			weapon.FallbackStatTrak = snapshot.FallbackStatTrak;
+		}
+
+		private void RestoreNativeWeaponMeshGroupMask(CCSPlayerController player, CBasePlayerWeapon weapon, NativeWeaponSnapshot snapshot)
+		{
+			var paintKit = snapshot.FallbackPaintKit;
+
+			if (paintKit <= 0 && snapshot.Item.PaintKitAttribute.HasValue)
+				paintKit = (int)snapshot.Item.PaintKitAttribute.Value;
+
+			if (paintKit <= 0)
+				return;
+
+			var skinInfo = SkinsList.FirstOrDefault(skin =>
+				skin["weapon_defindex"]?.ToObject<int>() == snapshot.Item.ItemDefinitionIndex && skin["paint"]?.ToObject<int>() == paintKit
+			);
+
+			if (skinInfo == null)
+				return;
+
+			UpdatePlayerWeaponMeshGroupMask(player, weapon, skinInfo.Value<bool>("legacy_model"));
+		}
+
+		private void RestoreInventoryGloves(CCSPlayerController player)
+		{
+			if (!Utility.IsPlayerValid(player) || (LifeState_t)player.LifeState != LifeState_t.LIFE_ALIVE)
+				return;
+
+			var pawn = player.PlayerPawn.Value;
+			if (pawn == null || !pawn.IsValid)
+				return;
+
+			if (!NativeGloveSnapshots.TryGetValue((player.Slot, player.SteamID, player.TeamNum, pawn.Handle), out var snapshot))
+			{
+				Logger.LogWarning("No native glove snapshot available for {PlayerName}", player.PlayerName);
+				return;
+			}
+
+			ApplyNativeEconItemSnapshot(pawn.EconGloves, snapshot);
+			pawn.EconGlovesChanged++;
+			Utilities.SetStateChanged(pawn, "CCSPlayerPawn", "m_nEconGlovesChanged");
+			player.ExecuteClientCommand("lastinv");
+			SetBodygroup(pawn, "first_or_third_person", 0);
+			AddTimer(
+				0.2f,
+				() =>
+				{
+					if (pawn.IsValid)
+						SetBodygroup(pawn, "first_or_third_person", 1);
+				},
+				TimerFlags.STOP_ON_MAPCHANGE
+			);
+		}
+
+		private void RestoreInventoryWeapon(CCSPlayerController player, int weaponDefIndex)
+		{
+			if (
+				!Utility.IsPlayerValid(player)
+				|| player.PlayerPawn.Value == null
+				|| player.PlayerPawn.Value.WeaponServices == null
+				|| (LifeState_t)player.LifeState != LifeState_t.LIFE_ALIVE
+			)
+			{
+				return;
+			}
+
+			var pawn = player.PlayerPawn.Value;
+			var pawnHandle = pawn.Handle;
+			var weaponServices = pawn.WeaponServices;
+
+			if (
+				!NativeWeaponSnapshots.TryGetValue(
+					(player.Slot, player.SteamID, player.TeamNum, pawnHandle, weaponDefIndex),
+					out var snapshot
+				)
+			)
+			{
+				Logger.LogWarning(
+					"No native weapon snapshot available for {PlayerName}, defindex {WeaponDefIndex}",
+					player.PlayerName,
+					weaponDefIndex
+				);
+				return;
+			}
+
+			foreach (var weaponHandle in weaponServices.MyWeapons.ToList())
+			{
+				if (!weaponHandle.IsValid || weaponHandle.Value == null || !weaponHandle.Value.IsValid)
+					continue;
+
+				var weapon = weaponHandle.Value;
+				if (weapon.AttributeManager.Item.ItemDefinitionIndex != weaponDefIndex)
+					continue;
+
+				var weaponData = weapon.As<CCSWeaponBase>().VData;
+				if (weaponData == null)
+					return;
+
+				var clip1 = weapon.Clip1;
+				var reserveAmmo = weapon.ReserveAmmo.Length > 0 ? weapon.ReserveAmmo[0] : 0;
+				var activeWeapon = weaponServices.ActiveWeapon.Value;
+				var wasActive = activeWeapon != null && activeWeapon.IsValid && activeWeapon.Handle == weapon.Handle;
+				var slotCommand =
+					snapshot.Classname == "weapon_taser"
+						? "slot11"
+						: weaponData.GearSlot switch
+						{
+							gear_slot_t.GEAR_SLOT_RIFLE => "slot1",
+							gear_slot_t.GEAR_SLOT_PISTOL => "slot2",
+							_ => null,
+						};
+
+				weapon.Remove();
+
+				Server.NextFrame(() =>
+				{
+					if (
+						!Utility.IsPlayerValid(player)
+						|| (LifeState_t)player.LifeState != LifeState_t.LIFE_ALIVE
+						|| player.PlayerPawn.Value == null
+						|| player.PlayerPawn.Value.Handle != pawnHandle
+					)
+					{
+						return;
+					}
+
+					var newWeapon = player.GiveNamedItem<CBasePlayerWeapon>(snapshot.Classname);
+					if (newWeapon == null || !newWeapon.IsValid)
+						return;
+
+					if (HasChangedPaint(player, weaponDefIndex, out _))
+					{
+						GivePlayerWeaponSkin(player, newWeapon);
+					}
+					else
+					{
+						ApplyNativeWeaponSnapshot(newWeapon, snapshot);
+						RestoreNativeWeaponMeshGroupMask(player, newWeapon, snapshot);
+					}
+
+					newWeapon.Clip1 = clip1;
+					if (newWeapon.ReserveAmmo.Length > 0)
+						newWeapon.ReserveAmmo[0] = reserveAmmo;
+
+					Utilities.SetStateChanged(player, "CCSPlayerController", "m_pInventoryServices");
+
+					if (wasActive && !string.IsNullOrEmpty(slotCommand))
+						player.ExecuteClientCommand(slotCommand);
+				});
+
+				return;
+			}
+		}
+
+		private void RestoreInventoryKnife(CCSPlayerController player, int selectionVersion)
+		{
+			if (
+				!Utility.IsPlayerValid(player)
+				|| player.PlayerPawn.Value == null
+				|| player.PlayerPawn.Value.WeaponServices == null
+				|| (LifeState_t)player.LifeState != LifeState_t.LIFE_ALIVE
+			)
+			{
+				return;
+			}
+
+			var pawn = player.PlayerPawn.Value;
+			var pawnHandle = pawn.Handle;
+			if (!NativeKnifeSnapshots.TryGetValue((player.Slot, player.SteamID, player.TeamNum, pawnHandle), out var snapshot))
+			{
+				Logger.LogWarning("No native knife snapshot available for {PlayerName}", player.PlayerName);
+				return;
+			}
+
+			foreach (var weaponHandle in pawn.WeaponServices.MyWeapons.ToList())
+			{
+				if (!weaponHandle.IsValid || weaponHandle.Value == null || !weaponHandle.Value.IsValid)
+					continue;
+
+				var weapon = weaponHandle.Value;
+				if (!weapon.DesignerName.Contains("knife") && !weapon.DesignerName.Contains("bayonet"))
+					continue;
+
+				weapon.Remove();
+			}
+
+			AddTimer(
+				0.10f,
+				() =>
+				{
+					if (
+						!Utility.IsPlayerValid(player)
+						|| (LifeState_t)player.LifeState != LifeState_t.LIFE_ALIVE
+						|| player.PlayerPawn.Value == null
+						|| player.PlayerPawn.Value.Handle != pawnHandle
+						|| !KnifeSelectionVersions.TryGetValue(player.Slot, out var currentVersion)
+						|| currentVersion != selectionVersion
+					)
+					{
+						return;
+					}
+
+					var newKnife = player.GiveNamedItem<CBasePlayerWeapon>(GetDefaultKnifeClassname(player));
+					if (newKnife == null || !newKnife.IsValid)
+						return;
+
+					ApplyNativeWeaponSnapshot(newKnife, snapshot);
+					RestoreNativeWeaponMeshGroupMask(player, newKnife, snapshot);
+					Utilities.SetStateChanged(player, "CCSPlayerController", "m_pInventoryServices");
+					player.ExecuteClientCommand("slot3");
+				},
+				TimerFlags.STOP_ON_MAPCHANGE
+			);
+		}
+
+		private static void RestoreInventoryMusicKit(CCSPlayerController player)
+		{
+			if (!Utility.IsPlayerValid(player) || player.InventoryServices == null)
+				return;
+
+			if (!NativeMusicKitSnapshots.TryGetValue((player.Slot, player.SteamID, player.Handle), out var snapshot))
+			{
+				return;
+			}
+
+			player.MusicKitID = snapshot.MusicKitID;
+			player.InventoryServices.MusicID = snapshot.InventoryMusicID;
+			Utilities.SetStateChanged(player, "CCSPlayerController", "m_iMusicKitID");
+			Utilities.SetStateChanged(player, "CCSPlayerController", "m_pInventoryServices");
+		}
+
+		private void RefreshWeaponSkin(CCSPlayerController? player, int weaponDefIndex)
+		{
+			if (
+				!_gBCommandsAllowed
+				|| player == null
+				|| !Utility.IsPlayerValid(player)
+				|| player.PlayerPawn.Value == null
+				|| player.PlayerPawn.Value.WeaponServices == null
+				|| (LifeState_t)player.LifeState != LifeState_t.LIFE_ALIVE
+				|| IsKnifeDefindex(weaponDefIndex)
+			)
+			{
+				return;
+			}
+
+			var weaponServices = player.PlayerPawn.Value.WeaponServices;
+
+			foreach (var weaponHandle in weaponServices.MyWeapons.ToList())
+			{
+				if (!weaponHandle.IsValid || weaponHandle.Value == null || !weaponHandle.Value.IsValid)
+				{
+					continue;
+				}
+
+				var weapon = weaponHandle.Value;
+
+				if (weapon.AttributeManager.Item.ItemDefinitionIndex != weaponDefIndex)
+				{
+					continue;
+				}
+
+				if (weapon.DesignerName.Contains("knife") || weapon.DesignerName.Contains("bayonet"))
+				{
+					return;
+				}
+
+				CaptureNativeWeaponSnapshot(player, weapon);
+
+				var weaponData = weapon.As<CCSWeaponBase>().VData;
+
+				if (weaponData == null)
+				{
+					return;
+				}
+
+				var classname = weapon.DesignerName;
+				var clip1 = weapon.Clip1;
+				var reserveAmmo = weapon.ReserveAmmo.Length > 0 ? weapon.ReserveAmmo[0] : 0;
+
+				var gearSlot = weaponData.GearSlot;
+
+				var activeWeapon = weaponServices.ActiveWeapon.Value;
+
+				var wasActive = activeWeapon != null && activeWeapon.IsValid && activeWeapon.Handle == weapon.Handle;
+
+				var slotCommand =
+					classname == "weapon_taser"
+						? "slot11"
+						: gearSlot switch
+						{
+							gear_slot_t.GEAR_SLOT_RIFLE => "slot1",
+							gear_slot_t.GEAR_SLOT_PISTOL => "slot2",
+							_ => null,
+						};
+
+				try
+				{
+					weapon.Remove();
+				}
+				catch (Exception ex)
+				{
+					Logger.LogWarning(ex, "Failed to remove weapon {WeaponName} from {PlayerName}", classname, player.PlayerName);
+
+					return;
+				}
+
+				Server.NextFrame(() =>
+				{
+					if (
+						!Utility.IsPlayerValid(player)
+						|| player.PlayerPawn.Value == null
+						|| player.PlayerPawn.Value.WeaponServices == null
+						|| (LifeState_t)player.LifeState != LifeState_t.LIFE_ALIVE
+					)
+					{
+						return;
+					}
+
+					var newWeapon = player.GiveNamedItem<CBasePlayerWeapon>(classname);
+
+					if (newWeapon == null || !newWeapon.IsValid)
+					{
+						Logger.LogWarning("Failed to recreate weapon {WeaponName} for {PlayerName}", classname, player.PlayerName);
+
+						return;
+					}
+
+					Utilities.SetStateChanged(player, "CCSPlayerController", "m_pInventoryServices");
+
+					Server.NextFrame(() =>
+					{
+						if (!Utility.IsPlayerValid(player) || !newWeapon.IsValid || (LifeState_t)player.LifeState != LifeState_t.LIFE_ALIVE)
+						{
+							return;
+						}
+
+						GivePlayerWeaponSkin(player, newWeapon);
+
+						newWeapon.Clip1 = clip1;
+
+						if (newWeapon.ReserveAmmo.Length > 0)
+						{
+							newWeapon.ReserveAmmo[0] = reserveAmmo;
+						}
+
+						if (wasActive && !string.IsNullOrEmpty(slotCommand))
+						{
+							player.ExecuteClientCommand(slotCommand);
+						}
+					});
+				});
+
+				return;
+			}
+		}
+
 		private void GivePlayerWeaponSkin(CCSPlayerController player, CBasePlayerWeapon weapon)
 		{
 			if (!Config.Additional.SkinEnabled)
 				return;
+
+			CaptureNativeWeaponSnapshot(player, weapon);
+
 			if (!GPlayerWeaponsInfo.TryGetValue(player.Slot, out _))
 				return;
 
@@ -302,6 +884,123 @@ namespace WeaponPaints
 			);
 		}
 
+		private static string GetDefaultKnifeClassname(CCSPlayerController player)
+		{
+			return player.TeamNum == (int)CsTeam.Terrorist ? "weapon_knife_t" : "weapon_knife";
+		}
+
+		private void RecreatePlayerKnife(CCSPlayerController player, int selectionVersion)
+		{
+			if (
+				!Utility.IsPlayerValid(player)
+				|| player.PlayerPawn.Value == null
+				|| player.PlayerPawn.Value.WeaponServices == null
+				|| (LifeState_t)player.LifeState != LifeState_t.LIFE_ALIVE
+			)
+			{
+				return;
+			}
+
+			var weapons = player.PlayerPawn.Value.WeaponServices.MyWeapons;
+
+			foreach (var weaponHandle in weapons.ToList())
+			{
+				if (!weaponHandle.IsValid || weaponHandle.Value == null || !weaponHandle.Value.IsValid)
+					continue;
+
+				var existingWeapon = weaponHandle.Value;
+				if (existingWeapon.DesignerName.Contains("knife") || existingWeapon.DesignerName.Contains("bayonet"))
+				{
+					CaptureNativeWeaponSnapshot(player, existingWeapon);
+					break;
+				}
+			}
+
+			foreach (var weaponHandle in weapons.ToList())
+			{
+				if (!weaponHandle.IsValid || weaponHandle.Value == null || !weaponHandle.Value.IsValid)
+				{
+					continue;
+				}
+
+				var weapon = weaponHandle.Value;
+
+				if (!weapon.DesignerName.Contains("knife") && !weapon.DesignerName.Contains("bayonet"))
+				{
+					continue;
+				}
+
+				try
+				{
+					weapon.Remove();
+				}
+				catch (Exception ex)
+				{
+					Logger.LogWarning(ex, "Failed to remove knife {KnifeName} from {PlayerName}", weapon.DesignerName, player.PlayerName);
+				}
+			}
+
+			AddTimer(
+				0.10f,
+				() =>
+				{
+					if (
+						!Utility.IsPlayerValid(player)
+						|| player.PlayerPawn.Value == null
+						|| (LifeState_t)player.LifeState != LifeState_t.LIFE_ALIVE
+					)
+					{
+						return;
+					}
+
+					if (!KnifeSelectionVersions.TryGetValue(player.Slot, out var currentVersion) || currentVersion != selectionVersion)
+					{
+						return;
+					}
+
+					var defaultKnifeClassname = GetDefaultKnifeClassname(player);
+
+					var newKnife = player.GiveNamedItem<CBasePlayerWeapon>(defaultKnifeClassname);
+
+					if (newKnife == null || !newKnife.IsValid)
+					{
+						Logger.LogWarning(
+							"Failed to give {KnifeClassname} to {PlayerName}, team {Team}",
+							defaultKnifeClassname,
+							player.PlayerName,
+							player.Team
+						);
+
+						return;
+					}
+
+					Utilities.SetStateChanged(player, "CCSPlayerController", "m_pInventoryServices");
+
+					AddTimer(
+						0.05f,
+						() =>
+						{
+							if (
+								!Utility.IsPlayerValid(player)
+								|| !newKnife.IsValid
+								|| !KnifeSelectionVersions.TryGetValue(player.Slot, out var latestVersion)
+								|| latestVersion != selectionVersion
+							)
+							{
+								return;
+							}
+
+							GivePlayerWeaponSkin(player, newKnife);
+
+							player.ExecuteClientCommand("slot3");
+						},
+						TimerFlags.STOP_ON_MAPCHANGE
+					);
+				},
+				TimerFlags.STOP_ON_MAPCHANGE
+			);
+		}
+
 		private static void GiveKnifeToPlayer(CCSPlayerController? player)
 		{
 			if (!_config.Additional.KnifeEnabled || player == null || !player.IsValid)
@@ -311,7 +1010,7 @@ namespace WeaponPaints
 				return;
 
 			//string knifeToGive = (CsTeam)player.TeamNum == CsTeam.Terrorist ? "weapon_knife_t" : "weapon_knife";
-			player.GiveNamedItem(CsItem.Knife);
+			player.GiveNamedItem(GetDefaultKnifeClassname(player));
 			Utilities.SetStateChanged(player, "CCSPlayerController", "m_pInventoryServices");
 		}
 
@@ -438,9 +1137,13 @@ namespace WeaponPaints
 
 					if (!PlayerHasKnife(player) && hasKnife)
 					{
-						var newKnife = new CBasePlayerWeapon(player.GiveNamedItem(CsItem.Knife));
+						var defaultKnife = GetDefaultKnifeClassname(player);
+
+						var newKnife = new CBasePlayerWeapon(player.GiveNamedItem(defaultKnife));
+
 						var newWeapon = new CBasePlayerWeapon(player.GiveNamedItem(CsItem.USP));
-						player.GiveNamedItem(CsItem.Knife);
+
+						player.GiveNamedItem(defaultKnife);
 						player.ExecuteClientCommand("slot3");
 
 						Server.NextFrame(() =>
@@ -494,10 +1197,9 @@ namespace WeaponPaints
 			if (pawn == null || !pawn.IsValid)
 				return;
 
-			CEconItemView item = pawn.EconGloves;
+			CaptureNativeGloveSnapshot(player);
 
-			item.NetworkedDynamicAttributes.Attributes.RemoveAll();
-			item.AttributeList.Attributes.RemoveAll();
+			CEconItemView item = pawn.EconGloves;
 
 			//force gloves model refresh to prevent model overlap
 			player.ExecuteClientCommand("lastinv");
@@ -513,14 +1215,41 @@ namespace WeaponPaints
 						if (!player.PawnIsAlive)
 							return;
 
+						// No WeaponPaints override:
+						// leave the CS2 inventory glove untouched.
 						if (
 							!GPlayersGlove.TryGetValue(player.Slot, out var gloveInfo)
 							|| !gloveInfo.TryGetValue(player.Team, out var gloveId)
-							|| gloveId == 0
-							|| !HasChangedPaint(player, gloveId, out var weaponInfo)
-							|| weaponInfo == null
 						)
+						{
 							return;
+						}
+
+						// Explicit Default:
+						// force the vanilla/default CT/T glove.
+						if (gloveId == 0)
+						{
+							item.ItemDefinitionIndex = 0;
+							item.NetworkedDynamicAttributes.Attributes.RemoveAll();
+							item.AttributeList.Attributes.RemoveAll();
+
+							UpdatePlayerEconItemId(item);
+							pawn.EconGlovesChanged++;
+							Utilities.SetStateChanged(pawn, "CCSPlayerPawn", "m_nEconGlovesChanged");
+
+							player.ExecuteClientCommand("lastinv");
+
+							SetBodygroup(pawn, "first_or_third_person", 0);
+
+							AddTimer(0.2f, () => SetBodygroup(pawn, "first_or_third_person", 1), TimerFlags.STOP_ON_MAPCHANGE);
+
+							return;
+						}
+
+						if (!HasChangedPaint(player, gloveId, out var weaponInfo) || weaponInfo == null)
+						{
+							return;
+						}
 
 						item.ItemDefinitionIndex = gloveId;
 
@@ -561,6 +1290,8 @@ namespace WeaponPaints
 						);
 
 						item.Initialized = true;
+						pawn.EconGlovesChanged++;
+						Utilities.SetStateChanged(pawn, "CCSPlayerPawn", "m_nEconGlovesChanged");
 
 						//force gloves model refresh to prevent model overlap
 						player.ExecuteClientCommand("lastinv");
@@ -641,26 +1372,18 @@ namespace WeaponPaints
 
 		private static void GivePlayerMusicKit(CCSPlayerController player)
 		{
-			if (player.IsBot)
-				return;
-			if (
-				!GPlayersMusic.TryGetValue(player.Slot, out var musicInfo)
-				|| !musicInfo.TryGetValue(player.Team, out var musicId)
-				|| musicId == 0
-			)
+			if (player.IsBot || player.InventoryServices == null)
 				return;
 
-			if (player.InventoryServices == null)
+			CaptureNativeMusicKitSnapshot(player);
+
+			if (!GPlayersMusic.TryGetValue(player.Slot, out var musicInfo) || !musicInfo.TryGetValue(player.Team, out var musicId))
 				return;
 
 			player.MusicKitID = musicId;
-			// player.MvpNoMusic = false;
 			player.InventoryServices.MusicID = musicId;
 			Utilities.SetStateChanged(player, "CCSPlayerController", "m_iMusicKitID");
-			// Utilities.SetStateChanged(player, "CCSPlayerController", "m_bMvpNoMusic");
 			Utilities.SetStateChanged(player, "CCSPlayerController", "m_pInventoryServices");
-			// player.MusicKitMVPs = musicId;
-			// Utilities.SetStateChanged(player, "CCSPlayerController", "m_iMusicKitMVPs");
 		}
 
 		private static void GivePlayerPin(CCSPlayerController player)
@@ -694,7 +1417,7 @@ namespace WeaponPaints
 				{
 					var newWeapon = new CBasePlayerWeapon(player.GiveNamedItem(CsItem.USP));
 					weapon.AddEntityIOEvent("Kill", weapon, null, "", 0.01f);
-					player.GiveNamedItem(CsItem.Knife);
+					player.GiveNamedItem(GetDefaultKnifeClassname(player));
 					player.ExecuteClientCommand("slot3");
 					newWeapon.AddEntityIOEvent("Kill", newWeapon, null, "", 0.01f);
 				}
@@ -747,7 +1470,7 @@ namespace WeaponPaints
 			}
 
 			// Check if the specified weapon has a paint/skin change
-			if (!teamWeapons.TryGetValue(weaponDefIndex, out var value) || value.Paint <= 0)
+			if (!teamWeapons.TryGetValue(weaponDefIndex, out var value))
 				return false;
 
 			weaponInfo = value; // Assign the out variable when it exists

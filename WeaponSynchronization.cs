@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Globalization;
 using CounterStrikeSharp.API.Modules.Utils;
 using Dapper;
@@ -50,12 +50,21 @@ internal class WeaponSynchronization
 			if (!_config.Additional.KnifeEnabled || string.IsNullOrEmpty(player?.SteamId))
 				return;
 
+			var selectionVersionAtStart = WeaponPaints.GetKnifeSelectionVersion(player.Slot);
+
 			const string query =
 				"SELECT `knife`, `weapon_team` FROM `wp_player_knife` WHERE `steamid` = @steamid ORDER BY `weapon_team` ASC";
 			var rows = connection.Query<dynamic>(query, new { steamid = player.SteamId }); // Retrieve all records for the player
 
 			foreach (var row in rows)
 			{
+				if (WeaponPaints.GetKnifeSelectionVersion(player.Slot) != selectionVersionAtStart)
+				{
+					Utility.Log($"Ignoring stale knife database load for slot {player.Slot}");
+
+					return;
+				}
+
 				// Check if knife is null or empty
 				if (string.IsNullOrEmpty(row.knife))
 					continue;
@@ -97,12 +106,20 @@ internal class WeaponSynchronization
 			if (!_config.Additional.GloveEnabled || string.IsNullOrEmpty(player?.SteamId))
 				return;
 
+			var selectionVersionAtStart = WeaponPaints.GetGloveSelectionVersion(player.Slot);
+
 			const string query =
 				"SELECT `weapon_defindex`, `weapon_team` FROM `wp_player_gloves` WHERE `steamid` = @steamid ORDER BY `weapon_team` ASC";
 			var rows = connection.Query<dynamic>(query, new { steamid = player.SteamId }); // Retrieve all records for the player
 
 			foreach (var row in rows)
 			{
+				if (WeaponPaints.GetGloveSelectionVersion(player.Slot) != selectionVersionAtStart)
+				{
+					Utility.Log($"Ignoring stale glove database load for slot {player.Slot}");
+					return;
+				}
+
 				// Check if weapon_defindex is null
 				if (row.weapon_defindex == null)
 					continue;
@@ -169,6 +186,10 @@ internal class WeaponSynchronization
 			if (!_config.Additional.SkinEnabled || player == null || string.IsNullOrEmpty(player.SteamId))
 				return;
 
+			var knifeSelectionVersionAtStart = WeaponPaints.GetKnifeSelectionVersion(player.Slot);
+			var gloveSelectionVersionAtStart = WeaponPaints.GetGloveSelectionVersion(player.Slot);
+			var skinSelectionVersionsAtStart = WeaponPaints.GetSkinSelectionVersions(player.Slot);
+
 			var playerWeapons = WeaponPaints.GPlayerWeaponsInfo.GetOrAdd(
 				player.Slot,
 				_ => new ConcurrentDictionary<CsTeam, ConcurrentDictionary<int, WeaponInfo>>()
@@ -188,6 +209,32 @@ internal class WeaponSynchronization
 				string weaponNameTag = row.weapon_nametag ?? "";
 				bool weaponStatTrak = row.weapon_stattrak ?? false;
 				int weaponStatTrakCount = row.weapon_stattrak_count ?? 0;
+
+				if (
+					WeaponPaints.IsKnifeDefindex(weaponDefIndex)
+					&& WeaponPaints.GetKnifeSelectionVersion(player.Slot) != knifeSelectionVersionAtStart
+				)
+				{
+					continue;
+				}
+
+				if (
+					WeaponPaints.IsGloveDefindex(weaponDefIndex)
+					&& WeaponPaints.GetGloveSelectionVersion(player.Slot) != gloveSelectionVersionAtStart
+				)
+				{
+					continue;
+				}
+
+				if (
+					!WeaponPaints.IsKnifeDefindex(weaponDefIndex)
+					&& !WeaponPaints.IsGloveDefindex(weaponDefIndex)
+					&& WeaponPaints.GetSkinSelectionVersion(player.Slot, weaponDefIndex)
+						!= skinSelectionVersionsAtStart.GetValueOrDefault(weaponDefIndex)
+				)
+				{
+					continue;
+				}
 
 				CsTeam weaponTeam = row.weapon_team switch
 				{
@@ -315,12 +362,20 @@ internal class WeaponSynchronization
 			if (!_config.Additional.MusicEnabled || string.IsNullOrEmpty(player?.SteamId))
 				return;
 
+			var selectionVersionAtStart = WeaponPaints.GetMusicSelectionVersion(player.Slot);
+
 			const string query =
 				"SELECT `music_id`, `weapon_team` FROM `wp_player_music` WHERE `steamid` = @steamid ORDER BY `weapon_team` ASC";
 			var rows = connection.Query<dynamic>(query, new { steamid = player.SteamId }); // Retrieve all records for the player
 
 			foreach (var row in rows)
 			{
+				if (WeaponPaints.GetMusicSelectionVersion(player.Slot) != selectionVersionAtStart)
+				{
+					Utility.Log($"Ignoring stale music database load for slot {player.Slot}");
+					return;
+				}
+
 				// Check if music_id is null
 				if (row.music_id == null)
 					continue;
@@ -421,7 +476,7 @@ internal class WeaponSynchronization
 					new
 					{
 						steamid = player.SteamId,
-						team,
+						team = (int)team,
 						newKnife = knife,
 					}
 				);
@@ -441,8 +496,8 @@ internal class WeaponSynchronization
 
 		const string query =
 			@"
-        INSERT INTO `wp_player_gloves` (`steamid`, `weapon_team`, `weapon_defindex`) 
-        VALUES(@steamid, @team, @gloveDefIndex) 
+        INSERT INTO `wp_player_gloves` (`steamid`, `weapon_team`, `weapon_defindex`)
+        VALUES(@steamid, @team, @gloveDefIndex)
         ON DUPLICATE KEY UPDATE `weapon_defindex` = @gloveDefIndex";
 
 		try
@@ -469,6 +524,94 @@ internal class WeaponSynchronization
 		{
 			// Log any exceptions that occur
 			Utility.Log($"Error syncing glove to database: {e.Message}");
+		}
+	}
+
+	internal async Task DeleteGloveFromDatabase(PlayerInfo player, int[] gloveDefindexes)
+	{
+		if (!_config.Additional.GloveEnabled || string.IsNullOrEmpty(player.SteamId))
+			return;
+
+		const string deleteGlovesQuery = "DELETE FROM `wp_player_gloves` WHERE `steamid` = @steamid";
+		const string deleteSkinsQuery =
+			"DELETE FROM `wp_player_skins` WHERE `steamid` = @steamid AND `weapon_defindex` IN @weaponDefindexes";
+
+		try
+		{
+			await using var connection = await _database.GetConnectionAsync();
+
+			await connection.ExecuteAsync(deleteGlovesQuery, new { steamid = player.SteamId });
+
+			if (gloveDefindexes.Length > 0)
+			{
+				await connection.ExecuteAsync(deleteSkinsQuery, new { steamid = player.SteamId, weaponDefindexes = gloveDefindexes });
+			}
+		}
+		catch (Exception e)
+		{
+			Utility.Log($"Error deleting glove override from database: {e.Message}");
+		}
+	}
+
+	internal async Task DeleteKnifeFromDatabase(PlayerInfo player, int[] knifeDefindexes)
+	{
+		if (!_config.Additional.KnifeEnabled || string.IsNullOrEmpty(player.SteamId))
+			return;
+
+		const string deleteKnifeQuery = "DELETE FROM `wp_player_knife` WHERE `steamid` = @steamid";
+		const string deleteSkinsQuery =
+			"DELETE FROM `wp_player_skins` WHERE `steamid` = @steamid AND `weapon_defindex` IN @weaponDefindexes";
+
+		try
+		{
+			await using var connection = await _database.GetConnectionAsync();
+
+			await connection.ExecuteAsync(deleteKnifeQuery, new { steamid = player.SteamId });
+
+			if (knifeDefindexes.Length > 0)
+			{
+				await connection.ExecuteAsync(deleteSkinsQuery, new { steamid = player.SteamId, weaponDefindexes = knifeDefindexes });
+			}
+		}
+		catch (Exception e)
+		{
+			Utility.Log($"Error deleting knife override from database: {e.Message}");
+		}
+	}
+
+	internal async Task DeleteWeaponPaintFromDatabase(PlayerInfo player, int weaponDefIndex)
+	{
+		if (string.IsNullOrEmpty(player.SteamId))
+			return;
+
+		const string query = "DELETE FROM `wp_player_skins` WHERE `steamid` = @steamid AND `weapon_defindex` = @weaponDefIndex";
+
+		try
+		{
+			await using var connection = await _database.GetConnectionAsync();
+			await connection.ExecuteAsync(query, new { steamid = player.SteamId, weaponDefIndex });
+		}
+		catch (Exception e)
+		{
+			Utility.Log($"Error deleting weapon paint override from database: {e.Message}");
+		}
+	}
+
+	internal async Task DeleteMusicFromDatabase(PlayerInfo player)
+	{
+		if (!_config.Additional.MusicEnabled || string.IsNullOrEmpty(player.SteamId))
+			return;
+
+		const string query = "DELETE FROM `wp_player_music` WHERE `steamid` = @steamid";
+
+		try
+		{
+			await using var connection = await _database.GetConnectionAsync();
+			await connection.ExecuteAsync(query, new { steamid = player.SteamId });
+		}
+		catch (Exception e)
+		{
+			Utility.Log($"Error deleting music kit override from database: {e.Message}");
 		}
 	}
 
@@ -501,6 +644,57 @@ internal class WeaponSynchronization
 		catch (Exception e)
 		{
 			Utility.Log($"Error syncing agents to database: {e.Message}");
+		}
+	}
+
+	internal async Task SyncWeaponPaintToDatabase(PlayerInfo player, int weaponDefIndex, CsTeam[] teams)
+	{
+		if (
+			string.IsNullOrEmpty(player.SteamId)
+			|| teams.Length == 0
+			|| !WeaponPaints.GPlayerWeaponsInfo.TryGetValue(player.Slot, out var teamWeaponInfos)
+		)
+		{
+			return;
+		}
+
+		const string query =
+			@"
+        INSERT INTO `wp_player_skins`
+            (`steamid`, `weapon_defindex`, `weapon_team`, `weapon_paint_id`, `weapon_wear`, `weapon_seed`)
+        VALUES
+            (@steamid, @weaponDefIndex, @weaponTeam, @paintId, @wear, @seed)
+        ON DUPLICATE KEY UPDATE
+            `weapon_paint_id` = @paintId,
+            `weapon_wear` = @wear,
+            `weapon_seed` = @seed";
+
+		try
+		{
+			await using var connection = await _database.GetConnectionAsync();
+
+			foreach (var team in teams)
+			{
+				if (!teamWeaponInfos.TryGetValue(team, out var weaponsInfo) || !weaponsInfo.TryGetValue(weaponDefIndex, out var weaponInfo))
+					continue;
+
+				await connection.ExecuteAsync(
+					query,
+					new
+					{
+						steamid = player.SteamId,
+						weaponDefIndex,
+						weaponTeam = (int)team,
+						paintId = weaponInfo.Paint,
+						wear = weaponInfo.Wear,
+						seed = weaponInfo.Seed,
+					}
+				);
+			}
+		}
+		catch (Exception e)
+		{
+			Utility.Log($"Error syncing weapon paint to database: {e.Message}");
 		}
 	}
 
@@ -686,10 +880,10 @@ internal class WeaponSynchronization
 				{
 					const string query =
 						@"
-					    UPDATE `wp_player_skins` 
-					    SET `weapon_stattrak` = @StatTrak, 
+					    UPDATE `wp_player_skins`
+					    SET `weapon_stattrak` = @StatTrak,
 					        `weapon_stattrak_count` = @StatTrakCount
-					    WHERE `steamid` = @steamid 
+					    WHERE `steamid` = @steamid
 					      AND `weapon_defindex` = @weaponDefIndex
 					      AND `weapon_team` = @weaponTeam";
 

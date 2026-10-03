@@ -17,10 +17,13 @@ public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig
 
 	public WeaponPaintsConfig Config { get; set; } = new();
 	private static WeaponPaintsConfig _config { get; set; } = new();
-	public override string ModuleAuthor => "Nereziel & daffyy";
-	public override string ModuleDescription => "Skin, gloves, agents and knife selector";
-	public override string ModuleName => "WeaponPaints";
-	public override string ModuleVersion => "3.3a";
+	internal const string EnhancedVersion = "0.1.0-dev.1";
+	internal const string EnhancedRepository = "https://github.com/atno11/WeaponPaints-Enhanced";
+
+	public override string ModuleAuthor => "Nereziel & daffyy / WeaponPaints-Enhanced contributors";
+	public override string ModuleDescription => "Standalone CS2 weapon cosmetics selector";
+	public override string ModuleName => "WeaponPaints-Enhanced";
+	public override string ModuleVersion => EnhancedVersion;
 
 	public override void Load(bool hotReload)
 	{
@@ -31,6 +34,9 @@ public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig
 		//	Patch.PerformPatch("74 ? 48 8D 0D ? ? ? ? FF 15 ? ? ? ? EB ? BA", "EB");
 
 		Instance = this;
+
+		Logger.LogInformation("{ModuleName} v{Version} loaded", ModuleName, ModuleVersion);
+		Logger.LogInformation("Repository: {Repository}", EnhancedRepository);
 
 		if (hotReload)
 		{
@@ -71,12 +77,7 @@ public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig
 			}
 		}
 
-		Utility.LoadSkinsFromFile(ModuleDirectory + $"/data/skins_{_config.SkinsLanguage}.json", Logger);
-		Utility.LoadGlovesFromFile(ModuleDirectory + $"/data/gloves_{_config.SkinsLanguage}.json", Logger);
-		Utility.LoadAgentsFromFile(ModuleDirectory + $"/data/agents_{_config.SkinsLanguage}.json", Logger);
-		Utility.LoadMusicFromFile(ModuleDirectory + $"/data/music_{_config.SkinsLanguage}.json", Logger);
-		Utility.LoadPinsFromFile(ModuleDirectory + $"/data/collectibles_{_config.SkinsLanguage}.json", Logger);
-
+		Utility.LoadLocalizedCatalogs(Path.Combine(ModuleDirectory, "data"), _config.SkinsLanguage, Logger);
 		RegisterListeners();
 	}
 
@@ -116,8 +117,6 @@ public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig
 		_localizer = Localizer;
 
 		Utility.Config = config;
-		Utility.ShowAd(ModuleVersion);
-		Task.Run(async () => await Utility.CheckVersion(ModuleVersion, Logger));
 	}
 
 	public override void OnAllPluginsLoaded(bool hotReload)
@@ -138,6 +137,8 @@ public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig
 				SetupMusicMenu();
 			if (Config.Additional.PinsEnabled)
 				SetupPinsMenu();
+
+			SetupMenuNavigationButtons();
 
 			RegisterCommands();
 		}

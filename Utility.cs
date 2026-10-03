@@ -1,4 +1,4 @@
-﻿using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Translations;
 using CounterStrikeSharp.API.Modules.Menu;
 using Dapper;
@@ -110,74 +110,91 @@ namespace WeaponPaints
 			return player is { IsValid: true, IsBot: false, IsHLTV: false, UserId: not null };
 		}
 
-		internal static void LoadSkinsFromFile(string filePath, ILogger logger)
+		private static List<JObject> LoadCatalogFile(string filePath, string catalogName, ILogger logger)
 		{
-			var json = File.ReadAllText(filePath);
 			try
 			{
-				var deserializedSkins = JsonConvert.DeserializeObject<List<JObject>>(json);
-				WeaponPaints.SkinsList = deserializedSkins ?? [];
-			}
-			catch (FileNotFoundException)
-			{
-				logger?.LogError("Not found \"skins.json\" file");
-			}
-		}
+				if (!File.Exists(filePath))
+					return [];
 
-		internal static void LoadPinsFromFile(string filePath, ILogger logger)
-		{
-			var json = File.ReadAllText(filePath);
-			try
-			{
-				var deserializedPins = JsonConvert.DeserializeObject<List<JObject>>(json);
-				WeaponPaints.PinsList = deserializedPins ?? [];
-			}
-			catch (FileNotFoundException)
-			{
-				logger?.LogError("Not found \"pins.json\" file");
-			}
-		}
-
-		internal static void LoadGlovesFromFile(string filePath, ILogger logger)
-		{
-			try
-			{
 				var json = File.ReadAllText(filePath);
-				var deserializedSkins = JsonConvert.DeserializeObject<List<JObject>>(json);
-				WeaponPaints.GlovesList = deserializedSkins ?? [];
+
+				return JsonConvert.DeserializeObject<List<JObject>>(json) ?? [];
 			}
-			catch (FileNotFoundException)
+			catch (Exception ex)
 			{
-				logger?.LogError("Not found \"gloves.json\" file");
+				logger.LogError(ex, "Failed to load {CatalogName} catalog from {FilePath}", catalogName, filePath);
+
+				return [];
 			}
 		}
 
-		internal static void LoadAgentsFromFile(string filePath, ILogger logger)
+		private static List<JObject> LoadLocalizedCatalog(
+			string dataDirectory,
+			string filePrefix,
+			string language,
+			string catalogName,
+			ILogger logger
+		)
 		{
-			try
+			var englishPath = Path.Combine(dataDirectory, $"{filePrefix}_en.json");
+
+			if (string.Equals(language, "en", StringComparison.OrdinalIgnoreCase))
 			{
-				var json = File.ReadAllText(filePath);
-				var deserializedSkins = JsonConvert.DeserializeObject<List<JObject>>(json);
-				WeaponPaints.AgentsList = deserializedSkins ?? [];
+				var englishCatalog = LoadCatalogFile(englishPath, catalogName, logger);
+
+				if (englishCatalog.Count == 0)
+				{
+					logger.LogError("English {CatalogName} catalog is missing or empty: {FilePath}", catalogName, englishPath);
+				}
+
+				return englishCatalog;
 			}
-			catch (FileNotFoundException)
+
+			var localizedPath = Path.Combine(dataDirectory, $"{filePrefix}_{language}.json");
+
+			var englishFallback = LoadCatalogFile(englishPath, catalogName, logger);
+			var localizedCatalog = LoadCatalogFile(localizedPath, catalogName, logger);
+
+			if (localizedCatalog.Count == 0)
 			{
-				logger?.LogError("Not found \"agents.json\" file");
+				logger.LogWarning(
+					"{CatalogName} catalog for language {Language} is missing or empty. Using English fallback ({EnglishCount} entries).",
+					catalogName,
+					language,
+					englishFallback.Count
+				);
+
+				return englishFallback;
 			}
+
+			if (englishFallback.Count > 0 && localizedCatalog.Count < englishFallback.Count)
+			{
+				logger.LogWarning(
+					"{CatalogName} catalog for language {Language} appears incomplete ({LocalizedCount}/{EnglishCount}). Using English fallback.",
+					catalogName,
+					language,
+					localizedCatalog.Count,
+					englishFallback.Count
+				);
+
+				return englishFallback;
+			}
+
+			return localizedCatalog;
 		}
 
-		internal static void LoadMusicFromFile(string filePath, ILogger logger)
+		internal static void LoadLocalizedCatalogs(string dataDirectory, string language, ILogger logger)
 		{
-			try
-			{
-				var json = File.ReadAllText(filePath);
-				var deserializedSkins = JsonConvert.DeserializeObject<List<JObject>>(json);
-				WeaponPaints.MusicList = deserializedSkins ?? [];
-			}
-			catch (FileNotFoundException)
-			{
-				logger?.LogError("Not found \"music.json\" file");
-			}
+			WeaponPaints.SkinsList = LoadLocalizedCatalog(dataDirectory, "skins", language, "skins", logger);
+
+			WeaponPaints.GlovesList = LoadLocalizedCatalog(dataDirectory, "gloves", language, "gloves", logger);
+
+			WeaponPaints.AgentsList = LoadLocalizedCatalog(dataDirectory, "agents", language, "agents", logger);
+
+			WeaponPaints.MusicList = LoadLocalizedCatalog(dataDirectory, "music", language, "music", logger);
+
+			WeaponPaints.PinsList = LoadLocalizedCatalog(dataDirectory, "collectibles", language, "collectibles", logger);
 		}
 
 		internal static void Log(string message)
@@ -218,6 +235,9 @@ namespace WeaponPaints
 
 				_ => WeaponPaints.MenuApi?.NewMenu(title),
 			};
+
+			if (menu != null)
+				menu.PostSelectAction = PostSelectAction.Nothing;
 
 			return menu;
 		}
