@@ -23,7 +23,11 @@ public partial class WeaponPaints
 						return;
 					}
 
-					if (!CommandsCooldown.TryGetValue(player.Slot, out var cooldownEndTime) || DateTime.UtcNow >= cooldownEndTime)
+					if (
+						!CommandsCooldown.TryGetValue(player.Slot, out var cooldownEndTime)
+						|| DateTime.UtcNow
+							>= (CommandsCooldown.TryGetValue(player.Slot, out cooldownEndTime) ? cooldownEndTime : DateTime.UtcNow)
+					)
 					{
 						CommandsCooldown[player.Slot] = DateTime.UtcNow.AddSeconds(Config.CmdRefreshCooldownSeconds);
 
