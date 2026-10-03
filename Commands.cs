@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Commands;
@@ -168,8 +169,169 @@ public partial class WeaponPaints
 		}
 	}
 
+	private void OnCommandFloat(CCSPlayerController? player, CommandInfo commandInfo)
+	{
+		if (!Config.Additional.SkinEnabled || !_gBCommandsAllowed)
+			return;
+
+		if (
+			player == null
+			|| !Utility.IsPlayerValid(player)
+			|| player.PlayerPawn.Value == null
+			|| player.PlayerPawn.Value.WeaponServices == null
+		)
+		{
+			return;
+		}
+
+		var rawWear = commandInfo.GetArg(1);
+
+		if (string.IsNullOrWhiteSpace(rawWear))
+		{
+			player.Print(Localizer["wp_float_usage"]);
+			return;
+		}
+
+		var normalizedWear = rawWear.Trim().Replace(',', '.');
+
+		if (
+			!float.TryParse(normalizedWear, NumberStyles.Float, CultureInfo.InvariantCulture, out var requestedWear)
+			|| !float.IsFinite(requestedWear)
+		)
+		{
+			player.Print(Localizer["wp_float_invalid"]);
+			return;
+		}
+
+		if (!IsWearInRange(requestedWear))
+		{
+			var (minWear, maxWear) = GetWearRange();
+
+			player.Print(
+				Localizer[
+					"wp_float_range",
+					minWear.ToString("0.000000", CultureInfo.InvariantCulture),
+					maxWear.ToString("0.000000", CultureInfo.InvariantCulture)
+				]
+			);
+
+			return;
+		}
+
+		var weapon = player.PlayerPawn.Value.WeaponServices.ActiveWeapon.Value;
+
+		if (weapon == null || !weapon.IsValid)
+		{
+			player.Print(Localizer["wp_float_no_weapon"]);
+			return;
+		}
+
+		var weaponDefindex = weapon.AttributeManager.Item.ItemDefinitionIndex;
+
+		if (!HasChangedPaint(player, weaponDefindex, out var weaponInfo) || weaponInfo == null)
+		{
+			player.Print(Localizer["wp_float_no_skin"]);
+			return;
+		}
+
+		var teams = new[] { player.Team };
+
+		if (!TrySetWeaponWear(player, weaponDefindex, teams, requestedWear, clampToRange: false, out var appliedWear))
+		{
+			player.Print(Localizer["wp_float_failed"]);
+			return;
+		}
+
+		player.Print(Localizer["wp_float_updated", appliedWear.ToString("0.000000", CultureInfo.InvariantCulture)]);
+	}
+
+	private void OpenWearCustomizationMenu(
+		CCSPlayerController player,
+		int weaponDefindex,
+		string weaponName,
+		string paintName,
+		CsTeam[] teams,
+		Action<CCSPlayerController> backAction
+	)
+	{
+		if (!Utility.IsPlayerValid(player))
+			return;
+
+		if (!TryGetWeaponWear(player, weaponDefindex, teams, out var currentWear))
+			return;
+
+		var currentExteriorKey = GetWearExteriorLocalizationKey(currentWear);
+
+		var wearMenu = Utility.CreateMenu(
+			Localizer["wp_float_menu_title", weaponName, paintName, currentWear.ToString("0.000000", CultureInfo.InvariantCulture)]
+		);
+
+		if (wearMenu == null)
+			return;
+
+		AddBackMenuOption(wearMenu, backAction);
+
+		foreach (var exterior in WearExteriors)
+		{
+			if (!TryGetWearPreset(exterior.LocalizationKey, out var presetWear))
+				continue;
+
+			var optionText =
+				exterior.LocalizationKey == currentExteriorKey
+					? $"• {Localizer[exterior.LocalizationKey]}"
+					: Localizer[exterior.LocalizationKey];
+
+			wearMenu.AddMenuOption(
+				optionText,
+				(p, _option) =>
+				{
+					if (!Utility.IsPlayerValid(p))
+						return;
+
+					if (!TrySetWeaponWear(p, weaponDefindex, teams, presetWear, clampToRange: true, out _))
+						return;
+
+					OpenWearCustomizationMenu(p, weaponDefindex, weaponName, paintName, teams, backAction);
+				}
+			);
+		}
+
+		var wearAdjustments = new[] { -0.100f, -0.010f, -0.001f, 0.001f, 0.010f, 0.100f };
+
+		foreach (var delta in wearAdjustments)
+		{
+			var optionText = delta > 0 ? $"+{delta:0.000}" : $"{delta:0.000}";
+
+			wearMenu.AddMenuOption(
+				optionText,
+				(p, _) =>
+				{
+					if (!Utility.IsPlayerValid(p))
+						return;
+
+					if (!TryAdjustWeaponWear(p, weaponDefindex, teams, delta))
+						return;
+
+					OpenWearCustomizationMenu(p, weaponDefindex, weaponName, paintName, teams, backAction);
+				}
+			);
+		}
+
+		OpenWeaponPaintsMenu(wearMenu, player, backAction);
+	}
+
 	private void RegisterCommands()
 	{
+		AddCommand(
+			"css_float",
+			"Set float/wear for the currently equipped weapon",
+			(player, info) =>
+			{
+				if (!Utility.IsPlayerValid(player))
+					return;
+				OnCommandFloat(player, info);
+			}
+		);
 		_config.Additional.CommandStattrak.ForEach(c =>
 		{
 			AddCommand(
@@ -481,11 +643,9 @@ public partial class WeaponPaints
 				foreach (var team in teamsToCheck)
 				{
 					var teamWeapons = playerSkins.GetOrAdd(team, _ => new ConcurrentDictionary<int, WeaponInfo>());
-					var weaponInfo = teamWeapons.GetOrAdd(weaponDefindex.Value, _ => new WeaponInfo());
+					var weaponInfo = teamWeapons.GetOrAdd(weaponDefindex.Value, _ => new WeaponInfo { Wear = 0.01f, Seed = 0 });
 
 					weaponInfo.Paint = paint.Value;
-					weaponInfo.Wear = 0.01f;
-					weaponInfo.Seed = 0;
 				}
 			}
 
@@ -603,6 +763,17 @@ public partial class WeaponPaints
 							return;
 
 						ApplyKnifeSelection(p, knifeKey, knifeName, weaponDefindex, paint, paintName, image);
+
+						var teamsToCheck = p.TeamNum < 2 ? new[] { CsTeam.Terrorist, CsTeam.CounterTerrorist } : [p.Team];
+
+						OpenWearCustomizationMenu(
+							p,
+							weaponDefindex,
+							knifeName,
+							finishName,
+							teamsToCheck,
+							backPlayer => OpenWeaponPaintsMenu(knifeSkinMenu, backPlayer, backToKnifeModels)
+						);
 					}
 				);
 			}
@@ -870,6 +1041,8 @@ public partial class WeaponPaints
 					continue;
 				}
 
+				var separatorIndex = paintName.IndexOf('|');
+				var finishName = separatorIndex >= 0 ? paintName[(separatorIndex + 1)..].Trim() : paintName;
 				var image = skin["image"]?.ToString() ?? "";
 
 				skinSubMenu.AddMenuOption(
@@ -897,11 +1070,9 @@ public partial class WeaponPaints
 						foreach (var team in teamsToCheck)
 						{
 							var teamWeapons = playerSkins.GetOrAdd(team, _ => new ConcurrentDictionary<int, WeaponInfo>());
-							var weaponInfo = teamWeapons.GetOrAdd(weaponDefindex, _ => new WeaponInfo());
+							var weaponInfo = teamWeapons.GetOrAdd(weaponDefindex, _ => new WeaponInfo { Wear = 0.01f, Seed = 0 });
 
 							weaponInfo.Paint = paint;
-							weaponInfo.Wear = 0.01f;
-							weaponInfo.Seed = 0;
 						}
 
 						var playerInfo = new PlayerInfo
@@ -924,6 +1095,15 @@ public partial class WeaponPaints
 
 							if (_gBCommandsAllowed && (LifeState_t)p.LifeState == LifeState_t.LIFE_ALIVE)
 								ApplyPlayerKnifeRuntimeSelection(p, selectionVersion);
+
+							OpenWearCustomizationMenu(
+								p,
+								weaponDefindex,
+								selectedWeapon,
+								finishName,
+								teamsToCheck,
+								backPlayer => OpenWeaponPaintsMenu(skinSubMenu, backPlayer, backAction)
+							);
 
 							if (WeaponSync == null)
 								return;
@@ -965,6 +1145,15 @@ public partial class WeaponPaints
 
 						if (_gBCommandsAllowed && (LifeState_t)p.LifeState == LifeState_t.LIFE_ALIVE)
 							RefreshWeaponSkin(p, weaponDefindex);
+
+						OpenWearCustomizationMenu(
+							p,
+							weaponDefindex,
+							selectedWeapon,
+							finishName,
+							teamsToCheck,
+							backPlayer => OpenWeaponPaintsMenu(skinSubMenu, backPlayer, backAction)
+						);
 
 						if (WeaponSync == null)
 							return;
@@ -1167,11 +1356,9 @@ public partial class WeaponPaints
 
 				var teamWeapons = playerWeapons.GetOrAdd(team, _ => new ConcurrentDictionary<int, WeaponInfo>());
 
-				var weaponInfo = teamWeapons.GetOrAdd(weaponDefindex, _ => new WeaponInfo());
+				var weaponInfo = teamWeapons.GetOrAdd(weaponDefindex, _ => new WeaponInfo { Wear = 0.00f, Seed = 0 });
 
 				weaponInfo.Paint = paint;
-				weaponInfo.Wear = 0.00f;
-				weaponInfo.Seed = 0;
 			}
 
 			if (!string.IsNullOrEmpty(Localizer["wp_glove_menu_select"]))
@@ -1355,6 +1542,20 @@ public partial class WeaponPaints
 									return;
 
 								ApplyGloveSelection(p, glove);
+
+								if (!int.TryParse(glove["weapon_defindex"]?.ToString(), out var weaponDefindex) || weaponDefindex == 0)
+									return;
+
+								var teamsToCheck = p.TeamNum < 2 ? new[] { CsTeam.Terrorist, CsTeam.CounterTerrorist } : [p.Team];
+
+								OpenWearCustomizationMenu(
+									p,
+									weaponDefindex,
+									Localizer[$"wp_glove_family_{familyId}"],
+									finishName,
+									teamsToCheck,
+									backPlayer => OpenWeaponPaintsMenu(gloveSkinMenu, backPlayer, backToGloveFamilies)
+								);
 							}
 						);
 					}
