@@ -141,6 +141,7 @@ public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig
 			SetupMenuNavigationButtons();
 
 			RegisterCommands();
+			RegisterCustomizationCommands();
 		}
 		catch (Exception)
 		{

@@ -115,18 +115,6 @@ public partial class WeaponPaints
 
 	private void RegisterCommands()
 	{
-		AddCommand(
-			"css_float",
-			"Set float/wear for the currently equipped weapon",
-			(player, info) =>
-			{
-				if (!Utility.IsPlayerValid(player))
-					return;
-
-				OnCommandFloat(player, info);
-			}
-		);
-
 		_config.Additional.CommandStattrak.ForEach(c =>
 		{
 			AddCommand(

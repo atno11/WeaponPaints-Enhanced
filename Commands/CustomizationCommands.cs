@@ -82,4 +82,19 @@ public partial class WeaponPaints
 
 		player.Print(Localizer["wp_float_updated", appliedWear.ToString("0.000000", CultureInfo.InvariantCulture)]);
 	}
+
+	private void RegisterCustomizationCommands()
+	{
+		AddCommand(
+			"css_float",
+			"Set float/wear for the currently equipped weapon",
+			(player, info) =>
+			{
+				if (!Utility.IsPlayerValid(player))
+					return;
+
+				OnCommandFloat(player, info);
+			}
+		);
+	}
 }
