@@ -136,7 +136,7 @@ public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig
 			if (Config.Additional.MusicEnabled)
 				SetupMusicMenu();
 			if (Config.Additional.PinsEnabled)
-				SetupPinsMenu();
+				RegisterPinCommands();
 
 			SetupMenuNavigationButtons();
 
