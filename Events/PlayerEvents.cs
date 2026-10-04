@@ -9,7 +9,7 @@ public partial class WeaponPaints
 	{
 		CCSPlayerController? player = @event.Userid;
 
-		if (player is null || !player.IsValid || Config.Additional is { KnifeEnabled: false, GloveEnabled: false })
+		if (player is null || !player.IsValid)
 			return HookResult.Continue;
 
 		CCSPlayerPawn? pawn = player.PlayerPawn.Value;
