@@ -40,8 +40,13 @@ public partial class WeaponPaints
 
 		player.MusicKitID = musicId;
 		player.InventoryServices.MusicID = musicId;
+		player.MusicKitMVPs = 0;
+		player.MvpNoMusic = false;
+
 		Utilities.SetStateChanged(player, "CCSPlayerController", "m_iMusicKitID");
 		Utilities.SetStateChanged(player, "CCSPlayerController", "m_pInventoryServices");
+		Utilities.SetStateChanged(player, "CCSPlayerController", "m_iMusicKitMVPs");
+		Utilities.SetStateChanged(player, "CCSPlayerController", "m_bMvpNoMusic");
 	}
 
 	private static void GivePlayerPin(CCSPlayerController player)

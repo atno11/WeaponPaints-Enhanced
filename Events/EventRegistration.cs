@@ -18,7 +18,7 @@ public partial class WeaponPaints
 		RegisterListener<Listeners.OnEntitySpawned>(OnEntityCreated);
 		RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath);
 
-		if (Config.Additional.ShowSkinImage)
+		if (Config.Additional.ShowSkinImage || Config.Additional.MusicEnabled)
 			RegisterListener<Listeners.OnTick>(OnTick);
 
 		VirtualFunctions.GiveNamedItemFunc.Hook(OnGiveNamedItemPost, HookMode.Post);

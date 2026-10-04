@@ -18,14 +18,53 @@ public partial class WeaponPaints
 
 	private void OnTick()
 	{
-		if (!Config.Additional.ShowSkinImage)
-			return;
-
 		foreach (var player in Players)
 		{
-			if (_playerWeaponImage.TryGetValue(player.Slot, out var value) && !string.IsNullOrEmpty(value))
+			if (!Utility.IsPlayerValid(player))
+				continue;
+
+			if (
+				Config.Additional.ShowSkinImage
+				&& _playerWeaponImage.TryGetValue(player.Slot, out var value)
+				&& !string.IsNullOrEmpty(value)
+			)
 			{
 				player.PrintToCenterHtml("<img src='{PATH}'</img>".Replace("{PATH}", value));
+			}
+
+			if (
+				!Config.Additional.MusicEnabled
+				|| player.IsBot
+				|| player.InventoryServices == null
+				|| !GPlayersMusic.TryGetValue(player.Slot, out var musicInfo)
+				|| !musicInfo.TryGetValue(player.Team, out var musicId)
+			)
+			{
+				continue;
+			}
+
+			if (player.InventoryServices.MusicID != musicId)
+			{
+				player.InventoryServices.MusicID = musicId;
+				Utilities.SetStateChanged(player, "CCSPlayerController", "m_pInventoryServices");
+			}
+
+			if (player.MusicKitID != musicId)
+			{
+				player.MusicKitID = musicId;
+				Utilities.SetStateChanged(player, "CCSPlayerController", "m_iMusicKitID");
+			}
+
+			if (player.MusicKitMVPs != 0)
+			{
+				player.MusicKitMVPs = 0;
+				Utilities.SetStateChanged(player, "CCSPlayerController", "m_iMusicKitMVPs");
+			}
+
+			if (player.MvpNoMusic)
+			{
+				player.MvpNoMusic = false;
+				Utilities.SetStateChanged(player, "CCSPlayerController", "m_bMvpNoMusic");
 			}
 		}
 	}
